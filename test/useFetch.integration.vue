@@ -28,7 +28,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useFetch, useFetchCacheStore } from '../composables/useFetch'
+import { useFetch, useFetchCacheStore } from '../composable/useFetch'
 
 interface TestResult {
   name: string
