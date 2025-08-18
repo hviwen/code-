@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import { storeToRefs } from 'pinia';
-import { useUserStore } from '../store/user';
+import { useUserStore } from '../stores/user.ts';
+
 
 export default function useFetch(url: RequestInfo | URL) {
   const data = ref(null);

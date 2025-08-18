@@ -724,3 +724,169 @@ sync：在监听器回调中访问被Vue更新之前的DOM（同步执行）
 
 
 
+
+
+**如何给 Pinia 写一个插件（插件 API 简述）？**
+
+```javascript
+pinia.use(({store})=>{
+  // 注入方法
+  store.$log = (...args)=> console.log(`${[strore.$id]}`,...args)
+  
+  const unsub = store.$subscribe((mutation,state)=>{
+    store.$log('mutation',mutation)
+  })
+  
+  return ()=> unsub()
+})
+```
+
+
+
+**如何为 Pinia 实现持久化插件（大概思路）？**
+
+可以通过实现组合函数，在localStorage/SessionStorage 中实现数据的本地化存储。
+
+也可以使用 pinia-plugin-persistedstate 来实现
+
+
+
+**如何在服务端渲染中同步 Pinia 状态（hydrate）？**
+
+：使用nuxt
+
+
+
+**Pinia 中如何实现模块之间的依赖注入且避免循环依赖？**
+
+将复用逻辑抽离封装到组合函数中，每一个store id只维护当前组件的状态数据。
+
+如果需要监听其他store的数据变化，可以使用订阅（$subsurice)的方式来获取其他store中数据的变化
+
+
+
+**如何对 Pinia store 做权限/隔离（多租户或不同用户）？**
+
+根据身份建立多个不同的store，然后将身份切换的逻辑抽离成公共部分，并监听身份状态的变化
+
+
+
+**如何对 Pinia 的 actions 做事务化（批量回滚）？**
+
+可以实现序列化缓存 根据cacheKey，回滚到相应的节点 
+
+
+
+**在大型项目中，如何组织 Pinia 的 store 文件结构？**
+
+每个单独的组件使用一个单独的store，公共部分抽离出来，index中id化
+
+
+
+**如何为 Pinia store 编写单元测试？（思路）**
+
+：
+
+
+
+**如何在 Pinia 中监听 state 变化并触发副作用（subscribe）？**
+
+通过
+```javascript
+store.$subscribe((mutation，state)=>{
+
+  // mutation包含：type paylod storeId
+  // 接收到这些变化后可以更新state
+})
+```
+
+
+
+**Pinia 如何支持按需加载 store（动态注册）？**
+
+defineStore是惰性注册的
+
+
+
+**路由懒加载与 webpack chunk name 的关系如何控制？**
+
+路由懒加载是通过 defineAsyncComponent 和 动态import() 结合实现，在需要显示对应组件时再加载组件。
+
+webpack 中通过tree-sharking（树摇）将并没有实际使用到的组件过滤，实现体积包优化，提升加载速度
+
+
+
+**如何实现基于 `meta` 的权限路由（示例流程）？**
+
+在路由配置中，可以基于meta配置路由权限，然后在导航守卫中解析用于权限判断
+
+```javascript
+const routes = [
+	{path:'/',name:'home',component:HomeView},
+  {path:'/user:id',name:'user',component:UserView,meta:{
+    authRequire: !!getToken()
+  }},
+  {path:'/login',name:'login',component:LoginView}
+]
+
+router.beforeEach((route)=>{
+  if(!route.meta.authRequire){
+    router.redrite('login')
+  }
+})
+```
+
+
+
+**解释路由守卫中异步验证的正确使用方式（避免导航闪烁）。**
+
+导航守卫参数中有异步验证函数，为避免导航闪烁，应适当添加 transition或者 在router-view中添加slot或者添加导航进度条优化体验
+
+
+
+**如何在路由导航时实现数据预取（prefetch）？**
+
+beforeRouterEnter 通过导航守卫 进入路由组件之前，通过to获取相关参数，获取页面数据。在next中通过vm将数据存储
+
+
+
+**解释 `history` 模式的差异（HTML5 history vs hash vs Web History）以及服务端配置注意点。**
+
+web端使用 webHistory
+
+
+
+**如何缓存路由组件（keep-alive）并控制哪些路由被缓存？**
+
+通过组件 `<KeepAlive>` 缓存
+
+
+
+**路由重定向和导航守卫中如何传递原始目标（用于登录后回跳）？**
+
+可以将目标路由和参数通过序列化，动态存储到重定向的meta或者地址后面。在完成登录或者操作后，读取并反序列目录路由信息（清除meta中的临时信息），然后跳转到目标页面
+
+
+
+**如何处理多个并发导航（重复点击）导致的导航取消错误？**
+
+1. 通过防抖debounce 限制
+2. 创建组件路由守卫，如果是相同路由只更新组件不做重复路由
+3. 如果是不同地址路由，通过组件路由守卫 router.beforeRouteEnter 在未完成加载前取消
+
+
+
+**如何实现路由级别的滚动恢复（back/forward）？**
+
+通过storage存储一个每个路由页面的scrollPosition，通过导航守卫每次页面离开时，将其记录并动态修改到注册的配置路由的scrollBehovier中
+
+
+
+**Vue Router 中如何处理动态匹配优先级？例如 `/user/:id` 与 `/user/profile` 的匹配顺序。**
+
+可以通过正则匹配，通过类型（number/string）做路由的区分
+
+
+
+
+
