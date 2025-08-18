@@ -589,3 +589,138 @@ Redirect: 重定向
 **如何在 `<router-link>` 中设置 active-class？**
 
 使用active-class 或者全局配置 linkActiveClass
+
+
+
+**解释 Vue 3 响应式系统中 `track` 与 `trigger` 的作用。**
+
+trigger 和 track 通过收集和触发依赖的配合，来实现核心的响应式监听作用。使用WeakMap Map 和Set组合的数据结构
+
+
+
+**如何实现一个可复用的 `useFetch` composable？要考虑哪些边界情况？**
+
+可以通过结合使用pinia的状态管理和useFetch逻辑复用实现
+
+要考虑：
+
+1. 加载状态
+2. 请求结构 （mothod header json/form）
+3. 数据返回 （数据转化 加工 过滤）
+4. 错误处理（超时 异常 权限 ）
+5. 缓存（重复请求，相同结构返回）
+
+```javascript
+export const useFetch = (url='',options={}){
+  const data = ref(null)
+  const isloading = ref(true)
+  const error = ref(null)
+  
+  const getInfo = async () =>{
+    try{
+      const response = await fetch(url,options)
+      if(!response.ok){
+        throw new Error('Network response was not ok')
+      }
+      data.value = await response.json()
+      
+    }catch(err){
+      error.value = err;
+    }finally{
+    	isloading.value = false;
+    }
+  }
+  getInfo()
+  
+  return {
+    data,
+    isloading,
+    error
+  }
+}
+```
+
+
+
+`computed` 的缓存失效有哪些触发条件？
+
+当其依赖的任意一项响应式源发生改变，computed的缓存将失效
+
+
+
+**解释 `reactive` 与 `Proxy` 的实现优势与限制。**
+
+vue3采用Proxy实现代理的底层逻辑，通过对数据的代理在数据读取或者修改时做时时监听，收集依赖。reactive包装一个对象实现响应式，深层递归对象的每个子属性实现响应式。
+优势：proxy能够拦截对象的全部操作 get set has deleteproperty ownKeys，不需要递归 Object.defineProperty每个属性；性能开销更小
+
+限制：兼容性问题。老浏览器没有实现proxy ployfill无法完全代替
+
+
+
+**如何实现防抖/节流的 composable？要注意依赖问题吗？**
+
+组合函数实现逻辑复用，可以在组合函数内部函数调用上使用节流和防抖，实现调用优化。
+依赖问题：
+
+
+
+**如何用 `markRaw` 或 `toRaw` 优化性能或避免代理问题？**
+
+markRaw：为标记数据禁止被包装为代理对象，通常用引入第三方库时，不改变其对象数据
+
+toRaw：将响应式数据转为非代理对象
+
+优化性能：避免给大型不可变数据做响应式代理，对MarkRaw的对象不会被Vue追踪
+
+
+
+**解释 `render` 函数与 JSX 的应用场景及优缺点。**
+
+Render 出现在选项式api中，是字符串模版的一种代替
+
+JSX 为单文件系统结构，聚合结构更加明显
+
+
+
+**如何避免大型列表渲染的性能问题？有什么技巧？**
+
+1. 可以将昂贵的计算放置到computed中缓存
+2. 可以使用虚拟列表
+3. 使用key
+4. 减少组件层props的传递
+5. 使用shallowRef
+6. 分页
+7. 引入更成熟的第三方库 vue-virtual-scroller
+
+
+
+**解释 `watch` 中的 `flush` 选项（pre/post/sync）有何不同？**
+
+flush: 
+
+pre： 在组件更新渲染之前执行监听器中的回调（DOM更新之前）
+
+post：在监听器回调中访问被Vue更新之后的DOM （读取更新后的DOM）
+
+sync：在监听器回调中访问被Vue更新之前的DOM（同步执行）
+
+
+
+**如何实现一个带取消功能的异步操作（例如按键触发的请求）？**
+
+可以实现一个异步调用的组合函数，在其中使用 AbortController，可以根据不同的情况来出发请求终止.结合使用onInvalidate在watch回调中清理，避免竞态
+
+
+
+**当一个 reactive 对象的属性被替换时（整体赋值），如何保证视图更新？**
+
+给 reactive 的属性直接赋新对象会触发更新；要替换整个引用并保持观察端感知，应把引用放入 `ref` 或使用受控的状态管理方法。
+
+
+
+**如何测试 Vue 3 组件（单元测试）？常用工具和策略。**
+
+[Vitest](https://vitest.dev/)
+
+
+
