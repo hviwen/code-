@@ -1552,7 +1552,7 @@ const childRef = ref<InstanceType<typeof ChildComponent> | null>(null)
 都是vue中作为监听响应式值变化的函数。
 
 watchEffect：自动收集依赖并立即执行副作用
-watch：显示监听源，并提供新旧值，用于更精准的副作用控制
+watch：显式监听源，并提供新旧值，用于更精准的副作用控制
 
 ## 深度分析与补充
 
@@ -1730,7 +1730,7 @@ watch(count, (newCount) => {
 
 **什么是 `shallowRef` 和 `shallowReactive`？**
 
-shalowRef 是定义浅层响应式原始值
+shallowRef 是定义浅层响应式原始值
 
 shallowReactive 是定义浅层响应式对象
 
@@ -1739,6 +1739,7 @@ shallowReactive 是定义浅层响应式对象
 **问题本质解读：** 这道题考察Vue 3响应式系统的性能优化API，面试官想了解你是否理解浅层响应式的工作原理和使用场景，以及何时选择性能优化方案。
 
 **技术错误纠正：**
+
 1. 拼写错误："shalowRef"应为"shallowRef"
 2. 原答案过于简单，没有说明"浅层"的具体含义
 3. 缺少与深层响应式的对比和使用场景
