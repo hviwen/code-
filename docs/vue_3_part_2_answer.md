@@ -140,7 +140,7 @@ export const useFetch = (url='',options={}){
       if(!response.ok){
         throw new Error('Network response was not ok')
       }
-      data.value = response.json()
+      data.value = await response.json()
 
     }catch(err){
       error.value = err;
