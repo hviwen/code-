@@ -67,6 +67,132 @@ export const useCounterStore = defineStore('counter', {
     doubleCount: (state) => state.count * 2
   }
 })
+
+// Composition API风格（推荐用于复杂逻辑）
+export const useUserStore = defineStore('user', () => {
+  const user = ref(null)
+  const isLoading = ref(false)
+  const error = ref(null)
+
+  const fetchUser = async (userId) => {
+    isLoading.value = true
+    error.value = null
+    try {
+      const response = await api.getUser(userId)
+      user.value = response.data
+    } catch (err) {
+      error.value = err.message
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  const isLoggedIn = computed(() => !!user.value)
+  const userName = computed(() => user.value?.name || 'Guest')
+
+  return { 
+    user: readonly(user), 
+    isLoading: readonly(isLoading), 
+    error: readonly(error),
+    isLoggedIn,
+    userName,
+    fetchUser 
+  }
+})
+
+// TypeScript支持（自动类型推导）
+interface User {
+  id: number
+  name: string
+  email: string
+  role: 'admin' | 'user' | 'guest'
+}
+
+export const useTypedUserStore = defineStore('typedUser', {
+  state: (): { user: User | null; users: User[] } => ({
+    user: null,
+    users: []
+  }),
+  
+  getters: {
+    userCount: (state): number => state.users.length,
+    hasUser: (state): boolean => !!state.user,
+    adminUsers: (state): User[] => state.users.filter(u => u.role === 'admin')
+  },
+  
+  actions: {
+    setUser(user: User): void {
+      this.user = user
+    },
+    
+    async loadUsers(): Promise<User[]> {
+      try {
+        this.users = await api.getUsers()
+        return this.users
+      } catch (error) {
+        console.error('Failed to load users:', error)
+        throw error
+      }
+    }
+  }
+})
+```
+
+**在组件中使用Pinia：**
+```vue
+<template>
+  <div>
+    <h2>计数器示例</h2>
+    <p>计数: {{ count }}</p>
+    <p>双倍: {{ doubleCount }}</p>
+    <button @click="increment">增加</button>
+    
+    <h2>用户信息</h2>
+    <div v-if="isLoading">加载中...</div>
+    <div v-else-if="error" class="error">
+      错误: {{ error }}
+    </div>
+    <div v-else-if="user">
+      <p>欢迎, {{ user.name }}!</p>
+      <p>角色: {{ user.role }}</p>
+    </div>
+    <button @click="loadUser">加载用户信息</button>
+  </div>
+</template>
+
+<script setup>
+import { storeToRefs } from 'pinia'
+import { useCounterStore, useUserStore } from '@/stores'
+
+const counterStore = useCounterStore()
+const userStore = useUserStore()
+
+// 解构响应式数据（使用storeToRefs保持响应性）
+const { count, doubleCount } = storeToRefs(counterStore)
+const { user, isLoading, error } = storeToRefs(userStore)
+
+// 解构方法（不需要storeToRefs）
+const { increment } = counterStore
+const { fetchUser } = userStore
+
+const loadUser = () => {
+  fetchUser(1)
+}
+
+// 组件挂载时执行
+onMounted(() => {
+  loadUser()
+})
+</script>
+
+<style scoped>
+.error {
+  color: red;
+  padding: 10px;
+  border: 1px solid red;
+  border-radius: 4px;
+}
+</style>
 ```
 
 **Pinia的优势详解：**
@@ -76,10 +202,91 @@ export const useCounterStore = defineStore('counter', {
 4. **支持多个stores**: 可以在一个组件中使用多个store
 5. **插件系统**: 更灵活的扩展机制
 
+**Pinia vs Vuex 核心差异对比：**
+
+| 特性 | Vuex 4 | Pinia | 优势说明 |
+|------|--------|-------|----------|
+| **API复杂度** | mutations + actions | 仅actions | 减少50%样板代码 |
+| **TypeScript支持** | 需要复杂配置 | 自动类型推导 | 开箱即用，类型安全 |
+| **模块化** | 手动命名空间 | 自动模块隔离 | 天然避免命名冲突 |
+| **代码分割** | 手动配置 | 自动支持 | 更好的构建优化 |
+| **DevTools** | 基础支持 | 增强集成 | 更强大的调试功能 |
+| **热重载** | 复杂配置 | 开箱即用 | 开发体验显著提升 |
+| **学习成本** | 中等偏高 | 低 | 更容易上手和维护 |
+| **包大小** | 较大 | 更小 | 更好的性能表现 |
+
+**实际项目迁移对比：**
+```javascript
+// Vuex项目结构（复杂）
+store/
+├── index.js          // 根store配置
+├── modules/
+│   ├── user.js       // 用户模块
+│   ├── product.js    // 产品模块
+│   └── cart.js       // 购物车模块
+└── types.js          // mutation types
+
+// 每个模块都需要：state + mutations + actions + getters
+// 加上命名空间配置，代码量庞大
+
+// Pinia项目结构（简洁）
+stores/
+├── user.js          // 用户store
+├── product.js       // 产品store
+└── cart.js          // 购物车store
+
+// 每个store是独立的，结构清晰，代码量减少约40%
+```
+
+**使用场景对比：**
+
+**选择Pinia的场景：**
+- ✅ Vue 3新项目（充分利用Composition API）
+- ✅ TypeScript项目（自动类型推导，开发体验极佳）
+- ✅ 中小型项目（API简洁，学习成本低）
+- ✅ 追求现代化开发体验（热重载、DevTools集成）
+- ✅ 需要良好的代码分割和包大小优化
+- ✅ 团队成员对Vue 3熟悉
+
+**继续使用Vuex的场景：**
+- ⚠️ Vue 2项目（Pinia主要为Vue 3设计）
+- ⚠️ 大型遗留系统（迁移成本过高，风险较大）
+- ⚠️ 团队成员对Vuex非常熟悉（短期内不适合切换）
+- ⚠️ 需要严格的状态变更控制（mutations提供更严格的约束）
+
+**迁移策略建议：**
+```javascript
+// 渐进式迁移方案
+// 1. 新功能使用Pinia
+// 2. 重构现有模块时逐步迁移
+// 3. 两者可以在同一项目中共存
+
+// 迁移工具函数示例
+export function migrateVuexToPinia(vuexModule) {
+  return defineStore(vuexModule.name, {
+    state: vuexModule.state,
+    actions: {
+      // 将mutations和actions合并
+      ...vuexModule.mutations,
+      ...vuexModule.actions
+    },
+    getters: vuexModule.getters
+  })
+}
+```
+
 **记忆要点总结：**
-- 核心优势：简化API、TypeScript友好、模块化、组合式API支持
-- 主要改进：去除mutations、自动类型推导、更好的开发体验
-- 适用场景：Vue 3项目、需要TypeScript支持、追求简洁API
+- **核心理念**: 简化状态管理，回归JavaScript本质，拥抱Composition API
+- **主要优势**: 
+  - 🚀 零样板代码：去除mutations，actions直接修改state
+  - 🔧 TypeScript友好：自动类型推导，无需手动配置
+  - 📦 天然模块化：每个store独立，无需命名空间
+  - ⚡ 更好性能：自动代码分割，包体积更小
+  - 🛠️ 开发体验：热重载、DevTools、插件系统
+- **API风格选择**: 
+  - Options API风格：适合简单场景，易于理解
+  - Composition API风格：适合复杂逻辑，更好的代码复用
+- **项目选型**: 新项目首选Pinia，老项目评估迁移成本后决定
 
 ---
 
@@ -268,6 +475,10 @@ export const useUserStore = defineStore('user', {
 })
 ```
 
+**使用场景对比：**
+- **Options API风格**: 简单store、团队熟悉Options API、快速原型开发
+- **Composition API风格**: 复杂业务逻辑、需要高度复用、TypeScript项目
+
 **记忆要点总结：**
 - 两种风格：Options API（简单）、Composition API（复杂逻辑）
 - 命名规范：use + StoreName + Store
@@ -434,10 +645,182 @@ export const useShoppingCartStore = defineStore('shoppingCart', {
 })
 ```
 
+**使用场景对比：**
+
+| 概念 | 适用场景 | 示例 | 
+|------|----------|------|
+| **State** | 应用全局状态 | 用户信息、主题设置、购物车数据 |
+| | 多组件共享数据 | 产品列表、通知消息、系统配置 |
+| | 持久化数据 | 用户偏好、表单暂存、应用设置 |
+| **Getters** | 数据过滤和转换 | 过滤待办事项、格式化日期 |
+| | 复杂计算 | 购物车总价、统计数据、图表数据 |
+| | 组合多个状态 | 用户权限检查、数据聚合 |
+| **Actions** | API交互 | 数据获取、表单提交、认证操作 |
+| | 复杂业务逻辑 | 结账流程、多步操作、状态机 |
+| | 异步操作 | 定时任务、WebSocket、批量处理 |
+
+**记忆要点总结：**
+- **State**: 响应式数据存储，函数返回对象，修改会触发视图更新
+- **Getters**: 计算属性，自动缓存，可组合，可传参，不修改state
+- **Actions**: 业务逻辑容器，异步操作处理，直接修改state，可互相调用
+- **数据流向**: State → Getters → 组件 → Actions → State（单向数据流）
+- **命名规范**: state用名词，getters用形容词/is前缀，actions用动词
+
+**技术错误纠正：**
+1. "acions"应为"actions"
+2. 缺少具体的使用场景和代码示例
+
+**知识点系统梳理：**
+
+**State（状态）：**
+- 存储应用的数据
+- 必须是函数返回对象（支持SSR）
+- 响应式的，变化会自动更新视图
+
+**Getters（计算属性）：**
+- 基于state计算衍生数据
+- 具有缓存特性，依赖不变时不重新计算
+- 可以访问其他getters
+- 支持传参（返回函数）
+
+**Actions（动作）：**
+- 修改state的唯一方式
+- 支持异步操作
+- 可以调用其他actions
+- 可以访问整个store实例
+
+**实战应用举例：**
+```javascript
+export const useShoppingCartStore = defineStore('shoppingCart', {
+  // State - 存储购物车数据
+  state: () => ({
+    items: [], // 商品列表
+    isLoading: false, // 加载状态
+    discount: 0, // 折扣
+    shippingFee: 10 // 运费
+  }),
+
+  // Getters - 计算衍生数据
+  getters: {
+    // 商品总数
+    totalItems: (state) => state.items.reduce((sum, item) => sum + item.quantity, 0),
+
+    // 商品总价
+    subtotal: (state) => state.items.reduce((sum, item) => sum + item.price * item.quantity, 0),
+
+    // 折扣金额
+    discountAmount() {
+      return this.subtotal * this.discount
+    },
+
+    // 最终总价
+    total() {
+      return this.subtotal - this.discountAmount + this.shippingFee
+    },
+
+    // 带参数的getter - 查找特定商品
+    getItemById: (state) => (id) => {
+      return state.items.find(item => item.id === id)
+    },
+
+    // 访问其他getter
+    formattedTotal() {
+      return `$${this.total.toFixed(2)}`
+    }
+  },
+
+  // Actions - 修改状态的方法
+  actions: {
+    // 添加商品
+    addItem(product) {
+      const existingItem = this.items.find(item => item.id === product.id)
+
+      if (existingItem) {
+        existingItem.quantity++
+      } else {
+        this.items.push({
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          quantity: 1
+        })
+      }
+    },
+
+    // 移除商品
+    removeItem(productId) {
+      const index = this.items.findIndex(item => item.id === productId)
+      if (index > -1) {
+        this.items.splice(index, 1)
+      }
+    },
+
+    // 更新数量
+    updateQuantity(productId, quantity) {
+      const item = this.items.find(item => item.id === productId)
+      if (item) {
+        if (quantity <= 0) {
+          this.removeItem(productId)
+        } else {
+          item.quantity = quantity
+        }
+      }
+    },
+
+    // 异步操作 - 应用优惠券
+    async applyCoupon(couponCode) {
+      this.isLoading = true
+
+      try {
+        const response = await api.validateCoupon(couponCode)
+        this.discount = response.discount
+        return { success: true, message: 'Coupon applied successfully' }
+      } catch (error) {
+        return { success: false, message: error.message }
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    // 清空购物车
+    clearCart() {
+      this.items = []
+      this.discount = 0
+    },
+
+    // 调用其他actions
+    async checkout() {
+      if (this.totalItems === 0) {
+        throw new Error('Cart is empty')
+      }
+
+      try {
+        const orderData = {
+          items: this.items,
+          total: this.total,
+          discount: this.discountAmount
+        }
+
+        const order = await api.createOrder(orderData)
+        this.clearCart() // 调用其他action
+        return order
+      } catch (error) {
+        throw new Error(`Checkout failed: ${error.message}`)
+      }
+    }
+  }
+})
+```
+
 **角色总结：**
 - **State**: 数据仓库，存储应用状态
 - **Getters**: 数据加工厂，计算衍生数据
 - **Actions**: 操作中心，处理业务逻辑和状态变更
+
+**使用场景对比：**
+- **State**: 存储用户信息、应用配置、业务数据等核心状态
+- **Getters**: 计算衍生数据、格式化显示、条件筛选等场景
+- **Actions**: 处理API调用、业务逻辑、状态变更等操作
 
 **记忆要点总结：**
 - State：响应式数据存储，函数返回对象
@@ -576,6 +959,24 @@ export default {
     })
   }
 }
+```
+
+**使用场景对比：**
+
+| 使用模式 | 适用场景 | 优缺点 |
+|----------|----------|--------|
+| **直接使用整个store** | 简单组件，操作较少 | ✅ 简单直观<br>❌ 模板中引用冗长 |
+| **解构store** | 复杂组件，频繁操作 | ✅ 代码精简，使用方便<br>❌ 需要记住storeToRefs |
+| **使用mapState/mapActions** | Options API组件 | ✅ 与Vue 2风格一致<br>❌ 不如Composition API灵活 |
+| **在Composables中使用** | 业务逻辑复用 | ✅ 高度可复用<br>✅ 关注点分离 |
+
+**记忆要点总结：**
+- **导入方式**: import { useXxxStore } from '@/stores/xxx'
+- **实例获取**: const store = useXxxStore()
+- **响应式解构**: storeToRefs(store) 保持响应性
+- **方法解构**: 直接从store解构actions
+- **组合使用**: 可以在一个组件中使用多个store
+- **映射方法**: mapState、mapActions 用于Options API
 ```
 
 **记忆要点总结：**
@@ -825,6 +1226,169 @@ const handleSubmit = () => {
 </script>
 ```
 
+**使用场景对比：**
+
+| 使用模式 | 适用场景 | 优点 | 缺点 |
+|----------|----------|------|------|
+| **在composable中封装单个store** | 简化特定业务逻辑 | ✅ 隐藏实现细节<br>✅ 专注业务逻辑 | ❌ 可能重复逻辑<br>❌ 增加间接层 |
+| **组合多个store** | 复杂业务流程 | ✅ 跨store数据整合<br>✅ 业务流程完整性 | ❌ 依赖多个store<br>❌ 测试复杂性增加 |
+| **抽象通用状态逻辑** | 重复使用的模式 | ✅ 高度复用<br>✅ 一致的状态处理 | ❌ 过度抽象风险<br>❌ 学习成本 |
+
+**记忆要点总结：**
+- **结合优势**: Pinia (状态) + Composables (逻辑) = 完美架构
+- **核心模式**: 
+  1. 在composables中使用store
+  2. 扩展store功能
+  3. 组合多个store
+  4. 分离UI和业务逻辑
+- **最佳实践**: 
+  - 按功能/领域组织composables
+  - 不在store中直接使用router等外部API
+  - 封装复杂业务流程
+  - 保持单一职责
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+
+      const result = await response.json()
+      data.value = transform(result)
+    } catch (err) {
+      error.value = err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  if (immediate) {
+    execute()
+  }
+
+  return {
+    data,
+    loading,
+    error,
+    execute,
+    refresh: execute
+  }
+}
+
+// 3. 表单处理组合函数
+export function useForm(initialData, validationRules = {}) {
+  const formData = reactive({ ...initialData })
+  const errors = reactive({})
+  const isSubmitting = ref(false)
+
+  // 可以集成用户store获取用户信息
+  const userStore = useUserStore()
+
+  const validate = () => {
+    Object.keys(errors).forEach(key => delete errors[key])
+
+    Object.keys(validationRules).forEach(field => {
+      const rule = validationRules[field]
+      const value = formData[field]
+
+      if (rule.required && !value) {
+        errors[field] = `${field} is required`
+      } else if (rule.pattern && !rule.pattern.test(value)) {
+        errors[field] = rule.message || `${field} is invalid`
+      }
+    })
+
+    return Object.keys(errors).length === 0
+  }
+
+  const submit = async (submitFn) => {
+    if (!validate()) return false
+
+    isSubmitting.value = true
+    try {
+      // 可以在提交时自动添加用户信息
+      const dataToSubmit = {
+        ...formData,
+        userId: userStore.user?.id
+      }
+
+      await submitFn(dataToSubmit)
+      return true
+    } catch (error) {
+      errors.submit = error.message
+      return false
+    } finally {
+      isSubmitting.value = false
+    }
+  }
+
+  const reset = () => {
+    Object.assign(formData, initialData)
+    Object.keys(errors).forEach(key => delete errors[key])
+  }
+
+  return {
+    formData,
+    errors,
+    isSubmitting,
+    validate,
+    submit,
+    reset
+  }
+}
+```
+
+**在组件中的使用：**
+```vue
+<template>
+  <div>
+    <!-- 使用认证组合函数 -->
+    <div v-if="user">
+      <h1>欢迎, {{ user.name }}</h1>
+      <button v-if="isAdmin" @click="goToAdmin">管理面板</button>
+      <button @click="logoutAndRedirect">登出</button>
+    </div>
+
+    <!-- 使用API组合函数 -->
+    <div v-if="loading">加载中...</div>
+    <div v-else-if="error">错误: {{ error.message }}</div>
+    <div v-else>
+      <div v-for="item in data" :key="item.id">
+        {{ item.name }}
+      </div>
+    </div>
+
+    <!-- 使用表单组合函数 -->
+    <form @submit.prevent="handleSubmit">
+      <input v-model="formData.name" placeholder="姓名" />
+      <span v-if="errors.name" class="error">{{ errors.name }}</span>
+
+      <button type="submit" :disabled="isSubmitting">
+        {{ isSubmitting ? '提交中...' : '提交' }}
+      </button>
+    </form>
+  </div>
+</template>
+
+<script setup>
+// 组合多个composables
+const { user, isAdmin, logoutAndRedirect } = useAuth()
+const { data, loading, error } = useApi('/api/items')
+const { formData, errors, isSubmitting, submit } = useForm(
+  { name: '', email: '' },
+  {
+    name: { required: true },
+    email: { required: true, pattern: /\S+@\S+\.\S+/ }
+  }
+)
+
+const handleSubmit = () => {
+  submit(async (data) => {
+    await api.createItem(data)
+  })
+}
+</script>
+```
+
 **记忆要点总结：**
 - 完美集成：Pinia store + Composition API
 - 扩展功能：在composables中使用store，添加业务逻辑
@@ -881,6 +1445,316 @@ export const useUserStore = defineStore('user', {
     // 2. 带参数的异步操作
     async fetchUserById(userId) {
       this.loading = true
+      this.error = null
+
+      try {
+        const user = await api.getUserById(userId)
+        this.currentUser = user
+        return user
+      } catch (error) {
+        this.error = error.message
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+
+    // 3. 并行异步操作
+    async fetchUserAndPermissions(userId) {
+      this.loading = true
+      this.error = null
+
+      try {
+        // 并行请求
+        const [user, permissions] = await Promise.all([
+          api.getUserById(userId),
+          api.getUserPermissions(userId)
+        ])
+
+        this.currentUser = {
+          ...user,
+          permissions
+        }
+
+        return this.currentUser
+      } catch (error) {
+        this.error = error.message
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
+
+    // 4. 带取消的异步操作
+    async searchUsers(query, signal) {
+      this.loading = true
+      this.error = null
+
+      try {
+        const results = await api.searchUsers(query, { signal })
+        this.users = results
+        return results
+      } catch (error) {
+        // AbortError不视为错误
+        if (error.name !== 'AbortError') {
+          this.error = error.message
+          throw error
+        }
+      } finally {
+        this.loading = false
+      }
+    },
+
+    // 5. 依赖其他store的异步操作
+    async fetchUserOrders(userId) {
+      const orderStore = useOrderStore()
+      
+      // 确保用户已加载
+      if (!this.currentUser || this.currentUser.id !== userId) {
+        await this.fetchUserById(userId)
+      }
+      
+      // 调用另一个store的异步操作
+      return orderStore.fetchOrdersByUser(userId)
+    },
+
+    // 6. 乐观更新模式
+    async updateUserProfile(userId, data) {
+      // 保存旧数据用于回滚
+      const oldUserData = { ...this.currentUser }
+      
+      // 乐观更新UI
+      this.currentUser = {
+        ...this.currentUser,
+        ...data
+      }
+      
+      try {
+        // 实际API调用
+        const updatedUser = await api.updateUser(userId, data)
+        this.currentUser = updatedUser
+        return updatedUser
+      } catch (error) {
+        // 出错时回滚
+        this.currentUser = oldUserData
+        this.error = error.message
+        throw error
+      }
+    }
+  }
+})
+```
+
+**组件中的使用示例：**
+```vue
+<template>
+  <div>
+    <h1>用户管理</h1>
+    
+    <!-- 加载状态 -->
+    <div v-if="loading" class="loading">加载中...</div>
+    
+    <!-- 错误处理 -->
+    <div v-if="error" class="error">
+      <p>出错了: {{ error }}</p>
+      <button @click="retryFetch">重试</button>
+    </div>
+    
+    <!-- 用户列表 -->
+    <div v-if="users.length > 0" class="user-list">
+      <div v-for="user in users" :key="user.id" class="user-item">
+        <h3>{{ user.name }}</h3>
+        <button @click="loadUserDetails(user.id)">查看详情</button>
+      </div>
+      
+      <!-- 分页控件 -->
+      <div class="pagination">
+        <button
+          :disabled="page === 1"
+          @click="changePage(page - 1)"
+        >
+          上一页
+        </button>
+        <span>{{ page }} / {{ Math.ceil(total / limit) }}</span>
+        <button
+          :disabled="page >= Math.ceil(total / limit)"
+          @click="changePage(page + 1)"
+        >
+          下一页
+        </button>
+      </div>
+    </div>
+    
+    <!-- 用户详情 -->
+    <div v-if="currentUser" class="user-details">
+      <h2>{{ currentUser.name }} 的详情</h2>
+      <p>邮箱: {{ currentUser.email }}</p>
+      <p>角色: {{ currentUser.role }}</p>
+      
+      <!-- 修改表单 -->
+      <form @submit.prevent="updateProfile">
+        <input v-model="form.name" placeholder="姓名" />
+        <button type="submit" :disabled="isUpdating">
+          {{ isUpdating ? '保存中...' : '保存修改' }}
+        </button>
+      </form>
+      
+      <!-- 相关订单 -->
+      <button @click="loadUserOrders">加载订单</button>
+      <div v-if="orders.length > 0">
+        <h3>订单历史</h3>
+        <div v-for="order in orders" :key="order.id">
+          订单 #{{ order.id }}: {{ order.total }}元
+        </div>
+      </div>
+    </div>
+    
+    <!-- 搜索功能 -->
+    <div class="search">
+      <input
+        v-model="searchQuery"
+        @input="handleSearch"
+        placeholder="搜索用户..."
+      />
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useUserStore } from '@/stores/user'
+import { useOrderStore } from '@/stores/order'
+
+const userStore = useUserStore()
+const orderStore = useOrderStore()
+
+// 从store中提取响应式数据
+const {
+  users,
+  currentUser,
+  loading,
+  error,
+  pagination: { page, limit, total }
+} = storeToRefs(userStore)
+
+const { orders } = storeToRefs(orderStore)
+
+// 表单状态
+const form = ref({ name: '' })
+const isUpdating = ref(false)
+const searchQuery = ref('')
+const searchController = ref(null)
+
+// 初始化
+onMounted(async () => {
+  await userStore.fetchUsers()
+})
+
+// 监听当前用户变化，更新表单
+watch(currentUser, (newUser) => {
+  if (newUser) {
+    form.value = {
+      name: newUser.name
+    }
+  }
+}, { immediate: true })
+
+// 分页操作
+const changePage = async (newPage) => {
+  userStore.pagination.page = newPage
+  await userStore.fetchUsers()
+}
+
+// 加载用户详情
+const loadUserDetails = async (userId) => {
+  try {
+    await userStore.fetchUserById(userId)
+  } catch (error) {
+    console.error('Failed to load user details:', error)
+  }
+}
+
+// 加载用户订单
+const loadUserOrders = async () => {
+  if (!currentUser.value) return
+  
+  try {
+    await userStore.fetchUserOrders(currentUser.value.id)
+  } catch (error) {
+    console.error('Failed to load orders:', error)
+  }
+}
+
+// 更新用户资料
+const updateProfile = async () => {
+  if (!currentUser.value) return
+  
+  isUpdating.value = true
+  try {
+    await userStore.updateUserProfile(currentUser.value.id, form.value)
+  } catch (error) {
+    console.error('Failed to update profile:', error)
+  } finally {
+    isUpdating.value = false
+  }
+}
+
+// 搜索功能（带防抖和取消）
+const handleSearch = () => {
+  // 取消之前的请求
+  if (searchController.value) {
+    searchController.value.abort()
+  }
+  
+  // 创建新的AbortController
+  searchController.value = new AbortController()
+  
+  // 延迟执行，实现简单防抖
+  setTimeout(async () => {
+    if (searchQuery.value.trim()) {
+      try {
+        await userStore.searchUsers(
+          searchQuery.value,
+          searchController.value.signal
+        )
+      } catch (error) {
+        console.error('Search failed:', error)
+      }
+    } else {
+      // 空查询，重新加载所有用户
+      await userStore.fetchUsers()
+    }
+  }, 300)
+}
+
+// 重试加载
+const retryFetch = () => userStore.fetchUsers()
+</script>
+```
+
+**使用场景对比：**
+
+| 异步操作模式 | 适用场景 | 最佳实践 |
+|--------------|----------|----------|
+| **基本请求-响应** | 简单数据获取 | 设置loading/error状态，使用try/catch/finally |
+| **并行请求** | 需要同时获取多个资源 | 使用Promise.all，统一处理成功/失败状态 |
+| **串行请求** | 后续请求依赖前一个请求 | 使用async/await，注意错误传播 |
+| **取消请求** | 搜索、自动完成 | 使用AbortController，处理AbortError |
+| **乐观更新** | 提升UI响应速度 | 立即更新UI，失败时回滚，保存旧状态 |
+| **跨store请求** | 复杂业务流程 | 在一个action中组合多个store，注意依赖关系 |
+
+**记忆要点总结：**
+- **异步处理模式**: async/await是首选，清晰直观
+- **状态管理**: 使用loading/error状态跟踪异步过程
+- **错误处理**: try/catch/finally模式，集中处理异步错误
+- **最佳实践**:
+  - 在actions中封装所有API调用
+  - 使用loading状态指示异步操作
+  - 集中管理错误处理
+  - 支持请求取消
+  - 适当使用乐观更新
+  - 保持组件简洁，业务逻辑放在store
 
       try {
         const user = await api.getUserById(userId)
@@ -1124,6 +1998,214 @@ class StoragePersistence {
       return item ? JSON.parse(item) : defaultValue
     } catch (error) {
       console.error('Failed to load from storage:', error)
+      return defaultValue
+    }
+  }
+
+  remove(key) {
+    try {
+      this.storage.removeItem(key)
+    } catch (error) {
+      console.error('Failed to remove from storage:', error)
+    }
+  }
+}
+
+// 在Pinia插件中使用
+const piniaPersistedStatePlugin = ({ options, store }) => {
+  const persistence = new StoragePersistence()
+  const storeKey = `pinia-${store.$id}`
+  
+  // 初始化时恢复状态
+  const savedState = persistence.load(storeKey)
+  if (savedState) {
+    store.$patch(savedState)
+  }
+  
+  // 监听状态变化保存
+  store.$subscribe((mutation, state) => {
+    persistence.save(storeKey, JSON.parse(JSON.stringify(state)))
+  })
+}
+
+// 使用自定义插件
+const pinia = createPinia()
+pinia.use(piniaPersistedStatePlugin)
+```
+
+**3. 基于watch的简单持久化：**
+```javascript
+// store.js
+export const useUserStore = defineStore('user', {
+  state: () => ({
+    user: null,
+    token: null
+  }),
+  
+  actions: {
+    setUser(user) {
+      this.user = user
+    },
+    setToken(token) {
+      this.token = token
+    },
+    logout() {
+      this.user = null
+      this.token = null
+    }
+  }
+})
+
+// 在组件中使用并持久化
+export function setupPersistence() {
+  const userStore = useUserStore()
+  
+  // 初始化时从localStorage恢复
+  const savedUser = localStorage.getItem('user')
+  const savedToken = localStorage.getItem('token')
+  
+  if (savedUser) userStore.setUser(JSON.parse(savedUser))
+  if (savedToken) userStore.setToken(savedToken)
+  
+  // 监听变化保存到localStorage
+  watch(
+    () => userStore.user,
+    (newUser) => {
+      if (newUser) {
+        localStorage.setItem('user', JSON.stringify(newUser))
+      } else {
+        localStorage.removeItem('user')
+      }
+    },
+    { deep: true }
+  )
+  
+  watch(
+    () => userStore.token,
+    (newToken) => {
+      if (newToken) {
+        localStorage.setItem('token', newToken)
+      } else {
+        localStorage.removeItem('token')
+      }
+    }
+  )
+  
+  return userStore
+}
+```
+
+**4. 加密持久化方案：**
+```javascript
+// 安装：npm install crypto-js
+
+import CryptoJS from 'crypto-js'
+
+// 加密持久化存储
+class SecureStorage {
+  constructor(secret, storage = localStorage) {
+    this.secret = secret
+    this.storage = storage
+  }
+
+  encrypt(data) {
+    return CryptoJS.AES.encrypt(
+      JSON.stringify(data),
+      this.secret
+    ).toString()
+  }
+
+  decrypt(ciphertext) {
+    const bytes = CryptoJS.AES.decrypt(ciphertext, this.secret)
+    return JSON.parse(bytes.toString(CryptoJS.enc.Utf8))
+  }
+
+  save(key, data) {
+    try {
+      const encrypted = this.encrypt(data)
+      this.storage.setItem(key, encrypted)
+    } catch (error) {
+      console.error('Failed to save encrypted data:', error)
+    }
+  }
+
+  load(key, defaultValue = null) {
+    try {
+      const encrypted = this.storage.getItem(key)
+      if (!encrypted) return defaultValue
+      
+      return this.decrypt(encrypted)
+    } catch (error) {
+      console.error('Failed to load/decrypt data:', error)
+      return defaultValue
+    }
+  }
+}
+
+// 在Pinia插件中使用
+const secureStatePlugin = ({ options, store }) => {
+  // 从环境变量或配置中获取密钥
+  const SECRET_KEY = import.meta.env.VITE_STORAGE_SECRET || 'default-secret-key'
+  const secureStorage = new SecureStorage(SECRET_KEY)
+  const storeKey = `secure-pinia-${store.$id}`
+  
+  // 恢复状态
+  const savedState = secureStorage.load(storeKey)
+  if (savedState) {
+    store.$patch(savedState)
+  }
+  
+  // 保存状态变化
+  store.$subscribe((mutation, state) => {
+    secureStorage.save(storeKey, state)
+  })
+}
+```
+
+**使用场景对比：**
+
+| 持久化方案 | 适用场景 | 优缺点 |
+|------------|----------|--------|
+| **localStorage** | 通用数据，无过期需求 | ✅ 简单易用<br>✅ 无需配置<br>❌ 容量有限<br>❌ 无安全保障 |
+| **sessionStorage** | 会话级数据 | ✅ 自动清理<br>✅ 隔离会话<br>❌ 关闭标签丢失 |
+| **IndexedDB** | 大量结构化数据 | ✅ 高性能<br>✅ 支持大数据<br>❌ API复杂 |
+| **Cookie** | 需服务端访问的数据 | ✅ 可设置过期<br>✅ 服务端可访问<br>❌ 容量极小<br>❌ 每次请求发送 |
+| **加密存储** | 敏感数据 | ✅ 数据安全<br>❌ 性能开销<br>❌ 密钥管理复杂 |
+
+**常见持久化问题及解决方案：**
+
+1. **安全性问题**:
+   - 敏感数据（如token）使用加密存储
+   - 避免存储密码等高敏感信息
+   - 考虑使用HttpOnly Cookie代替localStorage
+
+2. **存储限额问题**:
+   - localStorage约为5MB
+   - 只存储必要数据
+   - 大数据考虑使用IndexedDB
+
+3. **性能问题**:
+   - 避免频繁序列化大对象
+   - 使用防抖或节流限制存储频率
+   - 考虑增量更新而非全量保存
+
+4. **数据一致性问题**:
+   - 设置数据版本号，版本不匹配时重置
+   - 实现数据迁移策略
+   - 定义过期策略
+
+**记忆要点总结：**
+- **基本原理**: 监听状态变化 → 序列化 → 存储 → 应用初始化时恢复
+- **存储选择**: localStorage(持久)、sessionStorage(临时)、IndexedDB(大量数据)
+- **实现方式**: 
+  1. 官方插件(推荐): pinia-plugin-persistedstate
+  2. 自定义插件: subscribe + storage
+  3. 组件级: watch + storage
+- **高级功能**:
+  - 选择性持久化(paths)
+  - 自定义存储(storage)
+  - 加密存储(crypto-js)
+  - 数据过期控制
       return defaultValue
     }
   }
@@ -1563,6 +2645,27 @@ export default {
 }
 ```
 
+**使用场景对比：**
+
+| 监听方式 | 适用场景 | 优缺点 |
+|----------|----------|--------|
+| **watch单一属性** | 监听特定状态变化 | ✅ 精确触发<br>✅ 获取新旧值<br>❌ 需要手动设置getter |
+| **watchEffect** | 自动收集依赖 | ✅ 自动追踪依赖<br>✅ 代码简洁<br>❌ 无法获取旧值<br>❌ 可能触发多次 |
+| **$subscribe** | 全局监听状态变更 | ✅ 监听所有变化<br>✅ 访问修改详情<br>❌ 过滤成本高<br>❌ 可能过度触发 |
+| **$onAction** | 监听操作执行 | ✅ 拦截action调用<br>✅ 支持前后钩子<br>❌ 不监听直接状态变化 |
+
+**记忆要点总结：**
+- **精确监听**: 使用watch + getter函数选择特定字段
+- **嵌套属性**: 使用链式路径 `() => store.user?.profile?.name`
+- **多字段监听**: 使用数组 `watch([getter1, getter2], callback)`
+- **自动依赖**: 使用watchEffect自动收集依赖
+- **高级API**: $subscribe监听状态变化，$onAction监听操作执行
+- **性能考虑**: 
+  - 移除不需要的监听器
+  - 使用deep选项控制嵌套监听
+  - 避免在监听回调中进行复杂计算
+```
+
 **记忆要点总结：**
 - 基本方法：watch(() => store.field, callback)
 - 嵌套监听：watch(() => store.obj?.prop, callback)
@@ -1609,13 +2712,69 @@ if (import.meta.hot) {
 }
 ```
 
+**HMR过程详解：**
+1. **检测变化**：开发服务器监测到store文件变更
+2. **保存状态**：记录当前store状态
+3. **替换定义**：用新的store定义替换旧定义
+4. **恢复状态**：将保存的状态应用到新store
+5. **通知组件**：触发UI更新，但不丢失应用状态
+
 **开发工具集成：**
 - 自动检测store变化
 - 保持应用状态不丢失
 - 实时更新store逻辑
 - 支持时间旅行调试
 
+**HMR实现代码分析：**
+```javascript
+// Pinia内部HMR实现（简化版）
+export function acceptHMRUpdate(useStore, hot) {
+  return (newModule) => {
+    // 获取旧store定义
+    const id = useStore.$id
+    
+    // 临时保存当前状态
+    const oldState = JSON.parse(JSON.stringify(pinia.state.value[id]))
+    
+    // 清理旧store
+    const oldStore = pinia._s.get(id)
+    if (oldStore) {
+      oldStore.$dispose()
+    }
+    
+    // 创建新store
+    const newStore = newModule.default || newModule
+    newStore(pinia, id)
+    
+    // 恢复状态
+    pinia.state.value[id] = oldState
+    
+    // 通知组件更新
+    triggerSubscriptions()
+  }
+}
+```
+
+**使用场景对比：**
+
+| 开发场景 | 不使用HMR | 使用HMR |
+|----------|-----------|---------|
+| **修改state初始值** | 页面刷新，状态重置 | 保留现有状态，无感更新 |
+| **修改getter逻辑** | 页面刷新，状态重置 | 立即看到新计算结果，状态保留 |
+| **修改action实现** | 页面刷新，状态重置 | 新action立即可用，状态保留 |
+| **添加新state属性** | 页面刷新，状态重置 | 新属性立即可用，已有状态保留 |
+| **TypeScript类型修改** | 页面刷新，状态重置 | 类型更新，状态保留 |
+
 **记忆要点总结：**
+- **自动支持**：Vite/Webpack自动启用HMR，无需配置
+- **状态保持**：修改store时应用状态不丢失
+- **热替换范围**：state定义、getters、actions都支持热替换
+- **触发时机**：保存文件时自动触发更新
+- **最佳实践**：
+  - 开发时使用单独的store文件
+  - 利用TypeScript获得更好的HMR支持
+  - 配合Vue DevTools使用，实时预览状态
+  - 在同一文件中定义相关store，减少跨文件依赖
 - 自动支持：Vite/Webpack自动启用HMR
 - 状态保持：修改store时保持应用状态
 - 开发体验：实时预览store变化
@@ -1673,17 +2832,124 @@ const handleLogin = () => {
 </script>
 ```
 
+**高级组件间通信示例：**
+```javascript
+// 更复杂的共享场景 - 跨组件协作
+// 购物车组件
+export default {
+  setup() {
+    const cartStore = useCartStore()
+    const { items, totalPrice } = storeToRefs(cartStore)
+    
+    return { items, totalPrice }
+  }
+}
+
+// 商品列表组件
+export default {
+  setup() {
+    const cartStore = useCartStore()
+    const productStore = useProductStore()
+    
+    const { products } = storeToRefs(productStore)
+    const { addToCart } = cartStore
+    
+    onMounted(() => {
+      productStore.fetchProducts()
+    })
+    
+    return { 
+      products, 
+      addToCart
+    }
+  }
+}
+
+// 结账组件
+export default {
+  setup() {
+    const cartStore = useCartStore()
+    const orderStore = useOrderStore()
+    
+    const { items, totalPrice } = storeToRefs(cartStore)
+    const { createOrder } = orderStore
+    const { clearCart } = cartStore
+    
+    const checkout = async () => {
+      try {
+        await createOrder({
+          items: items.value,
+          total: totalPrice.value
+        })
+        clearCart()
+        router.push('/thank-you')
+      } catch (error) {
+        // 错误处理
+      }
+    }
+    
+    return { 
+      items, 
+      totalPrice,
+      checkout
+    }
+  }
+}
+```
+
 **单例机制原理：**
-- Pinia内部维护store实例映射
-- 相同ID的store返回同一实例
-- 跨组件自动同步状态变化
-- 无需手动管理实例生命周期
+```javascript
+// Pinia内部实现（简化版）
+class Pinia {
+  // 存储所有store实例的Map
+  _s = new Map()
+  
+  // 创建或返回已存在的store实例
+  use(store) {
+    const id = store.$id
+    
+    // 如果存在相同ID的store，直接返回
+    if (this._s.has(id)) {
+      return this._s.get(id)
+    }
+    
+    // 否则创建新实例并存储
+    const storeInstance = store(this)
+    this._s.set(id, storeInstance)
+    return storeInstance
+  }
+}
+
+// 使用时，Pinia确保相同ID的store返回同一个实例
+export function defineStore(id, options) {
+  return function useStore() {
+    const pinia = getCurrentInstance() ? inject('pinia') : null
+    
+    // 确保只有一个实例
+    return pinia.use({ $id: id, ...options })
+  }
+}
+```
+
+**使用场景对比：**
+
+| 场景 | 解决方案 | 优缺点 |
+|------|----------|--------|
+| **简单组件通信** | Pinia单例store | ✅ 简单易用<br>✅ 自动响应式<br>✅ 无需手动传递props |
+| **深层组件通信** | Pinia单例store | ✅ 避免props drilling<br>✅ 集中状态管理<br>❌ 可能导致过度耦合 |
+| **跨页面通信** | Pinia单例store | ✅ 页面间状态保持<br>✅ 自动同步<br>❌ 需要注意内存管理 |
+| **动态创建的组件** | Pinia单例store | ✅ 相同ID自动共享<br>✅ 无需手动注入 |
 
 **记忆要点总结：**
-- 单例模式：同ID的store返回相同实例
-- 自动共享：多个组件使用同一store实例
-- 状态同步：一处修改，处处更新
-- 简单使用：直接调用useStore即可
+- **单例设计**: 同一ID的store返回相同实例
+- **全局访问**: 任何组件都可以获取store实例
+- **自动共享**: 不需要额外配置，import即用
+- **响应式传递**: 一处修改，多处自动更新
+- **最佳实践**:
+  - 按功能域划分store
+  - 避免过度依赖全局状态
+  - 合理组织store之间的关系
+  - 注意store的循环依赖问题
 
 ---
 
@@ -1737,6 +3003,189 @@ const { createOrder } = orderStore
 </script>
 ```
 
+**与Vuex模块化对比：**
+```javascript
+// Vuex的命名空间写法
+const store = createStore({
+  modules: {
+    user: {
+      namespaced: true,
+      state: { users: [] },
+      mutations: {
+        SET_USERS(state, users) { state.users = users }
+      },
+      actions: {
+        fetchUsers({ commit }) {
+          // 实现获取用户逻辑
+          commit('SET_USERS', users)
+        }
+      }
+    },
+    product: {
+      namespaced: true,
+      state: { products: [] },
+      mutations: {
+        SET_PRODUCTS(state, products) { state.products = products }
+      },
+      actions: {
+        fetchProducts({ commit }) {
+          // 实现获取产品逻辑
+          commit('SET_PRODUCTS', products)
+        }
+      }
+    }
+  }
+})
+
+// Vuex使用命名空间模块
+this.$store.dispatch('user/fetchUsers')
+this.$store.state.user.users
+```
+
+**模块化结构最佳实践：**
+```javascript
+// 按功能/领域划分store文件
+
+// 用户相关 - stores/user.js
+export const useUserStore = defineStore('user', {
+  state: () => ({
+    currentUser: null,
+    users: [],
+    permissions: []
+  }),
+  getters: {
+    isAdmin: (state) => state.currentUser?.role === 'admin',
+    userById: (state) => (id) => state.users.find(u => u.id === id)
+  },
+  actions: {
+    fetchUsers() { /* ... */ },
+    login() { /* ... */ },
+    logout() { /* ... */ }
+  }
+})
+
+// 产品相关 - stores/product.js
+export const useProductStore = defineStore('product', {
+  state: () => ({
+    products: [],
+    categories: [],
+    filters: { category: null, price: null }
+  }),
+  getters: {
+    filteredProducts: (state) => { /* ... */ }
+  },
+  actions: {
+    fetchProducts() { /* ... */ },
+    updateFilters(filters) { /* ... */ }
+  }
+})
+
+// 购物车相关 - stores/cart.js
+export const useCartStore = defineStore('cart', {
+  state: () => ({
+    items: [],
+    coupon: null
+  }),
+  getters: {
+    totalPrice: (state) => { /* ... */ },
+    discountedPrice: (state) => { /* ... */ }
+  },
+  actions: {
+    addToCart(product, quantity = 1) { /* ... */ },
+    removeFromCart(productId) { /* ... */ },
+    applyCoupon(code) { /* ... */ }
+  }
+})
+
+// 导出所有store - stores/index.js
+export * from './user'
+export * from './product'
+export * from './cart'
+```
+
+**组合多个store：**
+```javascript
+// 创建一个复合store
+export function useShopStore() {
+  const userStore = useUserStore()
+  const productStore = useProductStore()
+  const cartStore = useCartStore()
+  
+  // 提供跨store的复合操作
+  const checkout = async () => {
+    if (!userStore.isLoggedIn) {
+      throw new Error('User must be logged in')
+    }
+    
+    if (cartStore.items.length === 0) {
+      throw new Error('Cart is empty')
+    }
+    
+    try {
+      // 处理结账逻辑，可能涉及多个store
+      const order = {
+        userId: userStore.currentUser.id,
+        items: cartStore.items.map(item => ({
+          productId: item.product.id,
+          quantity: item.quantity,
+          price: item.product.price
+        })),
+        total: cartStore.totalPrice,
+        discount: cartStore.discount
+      }
+      
+      // 可以调用API或其他store的方法
+      const result = await api.createOrder(order)
+      
+      // 更新多个store
+      cartStore.clearCart()
+      userStore.addOrderToHistory(result.orderId)
+      
+      return result
+    } catch (error) {
+      // 错误处理
+      throw error
+    }
+  }
+  
+  return {
+    // 暴露原始store
+    user: userStore,
+    product: productStore,
+    cart: cartStore,
+    
+    // 暴露复合操作
+    checkout
+  }
+}
+```
+
+**使用场景对比：**
+
+| 特性 | Vuex | Pinia | 优势说明 |
+|------|------|-------|----------|
+| **模块定义** | 需要配置namespaced:true | 每个store天然独立 | 更简洁，无需额外配置 |
+| **模块访问** | store.state.module.property | store.property | 更简单的API，无需前缀 |
+| **模块组合** | 复杂的辅助函数映射 | 直接import并使用 | 更符合组合式API思想 |
+| **TypeScript支持** | 需要复杂类型定义 | 自动类型推导 | 更好的开发体验 |
+| **模块间通信** | 需要命名空间路径 | 直接import其他store | 更符合JavaScript模块化 |
+| **代码分割** | 需要手动配置 | 自动按模块分割 | 更好的性能优化 |
+
+**记忆要点总结：**
+- **自然模块化**: 每个defineStore创建独立模块，无需命名空间
+- **简化访问**: 不需要module/property前缀，直接访问属性
+- **stores组织**: 按功能/业务域划分store文件
+- **模块通信**: 直接导入其他store使用，无需特殊API
+- **最佳实践**:
+  - 按功能将store拆分成多个小型store
+  - 使用子目录组织相关的store
+  - 利用组合函数组合多个store的功能
+  - 避免store之间的循环依赖
+const { products } = storeToRefs(productStore)
+const { createOrder } = orderStore
+</script>
+```
+
 **与Vuex对比：**
 ```javascript
 // Vuex需要命名空间
@@ -1782,7 +3231,13 @@ userStore.users
 
 **问题本质解读：** 这道题考察Pinia在非组件环境中的使用，面试官想了解你是否掌握store的生命周期和使用限制。
 
-**实战应用举例：**
+**技术错误纠正：**
+1. 原答案过于简略，缺少具体的实现方法
+2. 需要区分不同使用场景和解决方案
+
+**知识点系统梳理：**
+
+**1. 常见非组件环境使用场景：**
 ```javascript
 // 1. 在路由守卫中使用
 // router/index.js
@@ -1849,6 +3304,177 @@ export function showSuccess(message) {
     duration: 3000
   })
 }
+```
+
+**2. 非组件环境使用Pinia的挑战：**
+- Pinia需要访问Vue应用实例
+- 在组件外部没有自动的依赖注入上下文
+- 可能在应用挂载前就需要访问store
+
+**3. 解决方案：**
+
+**解决方案1：创建自定义Pinia实例（推荐）**
+```javascript
+// stores/index.js
+import { createPinia } from 'pinia'
+
+// 创建Pinia实例
+export const pinia = createPinia()
+
+// 导出以便在main.js中使用
+export function setupStore(app) {
+  app.use(pinia)
+}
+
+// 在utils/store-access.js中使用
+import { pinia } from '@/stores'
+import { useAuthStore } from '@/stores/auth'
+
+// 确保访问的是同一个Pinia实例
+export function getAuthStore() {
+  return useAuthStore(pinia)
+}
+
+// 在任何地方使用
+import { getAuthStore } from '@/utils/store-access'
+
+// 路由守卫
+router.beforeEach((to, from, next) => {
+  const authStore = getAuthStore()
+  // ...使用store
+})
+```
+
+**解决方案2：在外部文件保存store引用**
+```javascript
+// stores/instances.js
+// 存储store实例的引用
+export let authStore = null
+export let userStore = null
+
+// 在应用初始化时设置
+export function setStoreReferences() {
+  authStore = useAuthStore()
+  userStore = useUserStore()
+}
+
+// 在main.js中
+import { setStoreReferences } from '@/stores/instances'
+
+const app = createApp(App)
+app.use(createPinia())
+setStoreReferences() // 确保pinia已初始化
+app.mount('#app')
+
+// 在外部文件中使用
+import { authStore } from '@/stores/instances'
+
+// API拦截器
+api.interceptors.request.use(config => {
+  if (authStore?.token) {
+    config.headers.Authorization = `Bearer ${authStore.token}`
+  }
+  return config
+})
+```
+
+**解决方案3：使用延迟初始化模式**
+```javascript
+// utils/use-store.js
+export function useAuthStoreWithCheck() {
+  try {
+    return useAuthStore()
+  } catch (error) {
+    console.error('Pinia store accessed before initialization')
+    return null
+  }
+}
+
+// 在某些情况下，可能需要懒加载store
+export function getAuthStore() {
+  let store = null
+  
+  return () => {
+    if (!store) {
+      try {
+        store = useAuthStore()
+      } catch (error) {
+        console.warn('Store not yet available')
+      }
+    }
+    return store
+  }
+}
+
+// 使用
+const getStore = getAuthStore()
+
+export function validateToken(token) {
+  const store = getStore()
+  if (!store) return false
+  
+  return store.validateToken(token)
+}
+```
+
+**4. 在组件外使用TypeScript：**
+```typescript
+// stores/auth.ts
+import { defineStore } from 'pinia'
+import type { User, Token } from '@/types'
+
+export const useAuthStore = defineStore('auth', {
+  state: () => ({
+    user: null as User | null,
+    token: null as Token | null
+  }),
+  actions: {
+    login(credentials: { username: string; password: string }) {
+      // 实现登录逻辑
+    }
+  }
+})
+
+// 为外部使用定义类型
+export type AuthStore = ReturnType<typeof useAuthStore>
+
+// utils/store-access.ts
+import { pinia } from '@/stores'
+import { useAuthStore, type AuthStore } from '@/stores/auth'
+
+let _authStore: AuthStore | null = null
+
+export function getAuthStore(): AuthStore {
+  if (!_authStore) {
+    _authStore = useAuthStore(pinia)
+  }
+  return _authStore
+}
+```
+
+**使用场景对比：**
+
+| 使用场景 | 推荐方案 | 优缺点 |
+|----------|----------|--------|
+| **路由守卫** | 方案1：传递pinia实例 | ✅ 可靠性高<br>✅ 类型安全<br>❌ 需要手动传递pinia |
+| **API拦截器** | 方案2：存储实例引用 | ✅ 简单直接<br>✅ 性能好<br>❌ 依赖初始化顺序 |
+| **独立工具函数** | 方案3：延迟初始化 | ✅ 灵活性高<br>✅ 容错性好<br>❌ 可能出现空值 |
+| **测试环境** | 方案1：传递pinia实例 | ✅ 易于模拟<br>✅ 测试隔离性好 |
+
+**记忆要点总结：**
+- **基本原则**: Pinia需要在Vue应用挂载并初始化后才能使用
+- **解决方案**: 
+  1. 显式传递pinia实例（最佳实践）
+  2. 存储全局store引用
+  3. 使用延迟初始化和错误处理
+- **常见陷阱**: 
+  - 在createApp之前使用store
+  - 服务端渲染时未考虑状态隔离
+  - 未处理store未初始化的情况
+- **最佳实践**:
+  - 导出pinia实例供外部使用
+  - 实现获取store的工具函数
+  - 使用TypeScript增强类型安全
 
 // 4. 在服务类中使用
 // services/UserService.js
@@ -2109,11 +3735,27 @@ export const useNotificationStore = defineStore('notification', {
 })
 ```
 
+**使用场景对比：**
+
+| 使用场景 | 推荐方案 | 优缺点 |
+|----------|----------|--------|
+| **简单的store互用** | 直接导入 | ✅ 简单直观<br>✅ 开发效率高<br>❌ 可能造成隐式依赖 |
+| **复杂业务逻辑** | Composables封装 | ✅ 代码复用性高<br>✅ 关注点分离<br>✅ 测试友好 |
+| **跨组件通信** | $subscribe机制 | ✅ 松耦合<br>✅ 响应式更新<br>❌ 间接性强 |
+| **大型应用架构** | 分层设计 | ✅ 维护性好<br>✅ 可扩展性强<br>❌ 初始设计成本高 |
+
 **记忆要点总结：**
-- 直接调用：在store的actions中直接使用其他store
-- 组合封装：使用composables封装复杂的store间交互
-- 事件监听：使用$subscribe监听其他store的变化
-- 依赖管理：合理设计store间的依赖关系，避免循环依赖
+- **直接调用**: 在store的actions中直接使用其他store，最简单但要注意循环依赖
+- **组合封装**: 使用composables封装复杂的store间交互，便于测试和复用
+- **事件监听**: 使用$subscribe监听其他store的变化，实现松耦合通信
+- **依赖管理**: 
+  - 避免循环依赖问题
+  - 考虑分层架构（数据层、领域层、UI层）
+  - 使用依赖注入思想减少硬编码依赖
+- **最佳实践**:
+  - 明确store间的依赖关系
+  - 在较大项目中绘制store依赖图
+  - 考虑使用模块化设计减少耦合
 
 ---
 
@@ -2295,41 +3937,72 @@ export default {
 </template>
 ```
 
-**与Composition API对比：**
+**使用场景对比：**
+
+| 使用场景 | Options API | Composition API |
+|----------|-------------|-----------------|
+| **基本状态映射** | `...mapState(useStore, ['prop'])` | `const { prop } = storeToRefs(store)` |
+| **动作映射** | `...mapActions(useStore, ['action'])` | `const { action } = store` |
+| **重命名** | `...mapState(useStore, { newName: 'oldName' })` | `const newName = computed(() => store.oldName)` |
+| **多store使用** | 多个`mapState`/`mapActions`调用 | 多个`useStore`调用 |
+| **自定义逻辑** | 函数映射 | `computed`和普通函数 |
+| **模板使用** | 直接使用映射属性和方法 | 直接使用返回的属性和方法 |
+
+**实现原理与解析：**
 ```javascript
-// Options API写法
-export default {
-  computed: {
-    ...mapState(useUserStore, ['user', 'isLoggedIn'])
-  },
-  methods: {
-    ...mapActions(useUserStore, ['login', 'logout'])
+// mapState简化实现
+function mapState(useStore, keysOrMapper) {
+  const store = useStore()
+  const storeKey = store.$id
+  
+  // 处理数组形式
+  if (Array.isArray(keysOrMapper)) {
+    return keysOrMapper.reduce((mappedState, key) => {
+      mappedState[key] = function() {
+        return store[key]
+      }
+      return mappedState
+    }, {})
   }
-}
-
-// Composition API写法
-export default {
-  setup() {
-    const userStore = useUserStore()
-    const { user, isLoggedIn } = storeToRefs(userStore)
-    const { login, logout } = userStore
-
-    return {
-      user,
-      isLoggedIn,
-      login,
-      logout
+  
+  // 处理对象形式
+  return Object.keys(keysOrMapper).reduce((mappedState, key) => {
+    const mapFn = keysOrMapper[key]
+    
+    // 函数形式
+    if (typeof mapFn === 'function') {
+      mappedState[key] = function() {
+        // 调用用户提供的函数，并传入store
+        return mapFn.call(this, store)
+      }
+    } 
+    // 字符串形式（重命名）
+    else {
+      mappedState[key] = function() {
+        return store[mapFn]
+      }
     }
-  }
+    
+    return mappedState
+  }, {})
 }
 ```
 
 **记忆要点总结：**
-- mapState：映射state和getters到computed
-- mapActions：映射actions到methods
-- 支持重命名：使用对象形式映射
-- 多store支持：可以同时映射多个store
-- 函数形式：支持自定义映射逻辑
+- **映射机制**: 
+  - mapState映射state和getters到computed属性
+  - mapActions映射actions到methods方法
+- **映射方式**:
+  - 数组形式：原名映射
+  - 对象形式：重命名或自定义函数
+- **注意事项**:
+  - 需要在computed/methods中展开
+  - 使用函数形式可添加自定义逻辑
+  - 避免命名冲突
+- **优势**:
+  - 兼容Options API
+  - 简化store访问
+  - 支持灵活的映射方式
 
 ---
 
@@ -2398,18 +4071,88 @@ export const useUserStore = defineStore('user', {
 })
 ```
 
-**DevTools功能特性：**
-- **状态检查**: 实时查看store状态
-- **时间旅行**: 回溯状态变化历史
-- **Action追踪**: 监控action调用和参数
-- **Mutation记录**: 记录所有状态变更
-- **性能分析**: 分析store操作性能
+**DevTools功能与使用：**
+
+| 功能 | 说明 | 使用方法 |
+|------|------|---------|
+| **状态检查** | 实时查看store状态 | DevTools → Pinia → 选择store → State |
+| **时间旅行** | 回溯状态变化历史 | DevTools → Timeline → 选择事件 → Jump to |
+| **Action追踪** | 监控action调用和参数 | DevTools → Timeline → 筛选Pinia动作 |
+| **事件过滤** | 按类型筛选事件 | DevTools → 事件筛选器 → 选择Pinia |
+| **状态编辑** | 动态修改store状态 | DevTools → Pinia → 修改状态值 |
+
+**安装与配置：**
+```bash
+# 安装Vue DevTools浏览器扩展
+# Chrome: https://chrome.google.com/webstore/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd
+# Firefox: https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/
+
+# 安装开发依赖
+npm install -D @vue/devtools
+
+# 独立使用Vue DevTools
+npx vue-devtools
+```
+
+**高级调试技巧：**
+```javascript
+// 在store中添加调试辅助
+export const useDebugStore = defineStore('debug', {
+  state: () => ({
+    logs: []
+  }),
+  
+  actions: {
+    log(module, message, data = null) {
+      const timestamp = new Date().toISOString()
+      this.logs.push({ timestamp, module, message, data })
+      
+      // 在开发模式下同时输出到控制台
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[${module}] ${message}`, data)
+      }
+    },
+    
+    clear() {
+      this.logs = []
+    }
+  }
+})
+
+// 在其他store中使用
+export const useUserStore = defineStore('user', {
+  actions: {
+    async login(credentials) {
+      const debugStore = useDebugStore()
+      debugStore.log('auth', 'Login attempt', { username: credentials.username })
+      
+      try {
+        // 登录逻辑
+        const result = await api.login(credentials)
+        debugStore.log('auth', 'Login success', { userId: result.user.id })
+        return result
+      } catch (error) {
+        debugStore.log('auth', 'Login failed', { error: error.message })
+        throw error
+      }
+    }
+  }
+})
+```
 
 **记忆要点总结：**
-- 自动集成：Pinia自动与Vue DevTools集成
-- 开发模式：只在开发环境启用
-- 功能丰富：状态检查、时间旅行、性能分析
-- 可配置：支持自定义调试信息和显示名称
+- **自动集成**: Pinia默认与Vue DevTools集成，无需额外配置
+- **环境控制**: 可针对不同环境配置调试功能
+- **关键功能**:
+  - 状态检查与编辑
+  - 操作历史与时间旅行
+  - Action调用追踪
+  - 性能分析
+- **最佳实践**:
+  - 仅在开发环境启用完整调试
+  - 使用自定义插件增强调试体验
+  - 为store添加有意义的名称
+  - 结合日志系统实现高级调试
 
 ---
 
@@ -2542,17 +4285,77 @@ export const useDataStore = defineStore('data', {
 })
 ```
 
-**SSR注意事项：**
-- **状态同步**: 服务端状态需要传递给客户端
-- **API差异**: 服务端和客户端可能使用不同的API
-- **生命周期**: 某些操作只能在客户端执行
-- **内存管理**: 服务端需要为每个请求创建新的store实例
+**SSR架构解析：**
+
+| 阶段 | 执行内容 | 注意事项 |
+|------|---------|---------|
+| **服务端** | 1. 创建新应用实例<br>2. 创建Pinia实例<br>3. 获取数据<br>4. 渲染HTML<br>5. 序列化状态 | - 每个请求需要新实例<br>- 避免使用浏览器API<br>- 处理错误边界 |
+| **传输** | 1. 发送HTML<br>2. 发送序列化状态<br>3. 发送客户端JS | - 安全转义状态数据<br>- 优化传输大小 |
+| **客户端** | 1. 创建应用实例<br>2. 恢复Pinia状态<br>3. 挂载应用<br>4. 激活交互 | - 确保状态结构匹配<br>- 处理客户端特有逻辑 |
+
+**跨环境处理技巧：**
+```javascript
+// 1. 检测当前环境
+const isServer = typeof window === 'undefined'
+
+// 2. 条件性API调用
+export const useProductStore = defineStore('products', {
+  actions: {
+    async fetchProducts() {
+      if (isServer) {
+        // 服务端直接查询数据库
+        const db = await import('../server/db')
+        this.products = await db.getProducts()
+      } else {
+        // 客户端通过API获取
+        this.products = await fetch('/api/products').then(r => r.json())
+      }
+    }
+  }
+})
+
+// 3. 服务端专用状态
+export const useServerStore = defineStore('server', {
+  state: () => ({
+    requestInfo: null,
+    renderContext: null
+  }),
+  
+  // 确保这些状态不会被传递到客户端
+  hydrate: false
+})
+
+// 4. 使用插件处理跨环境需求
+const envPlugin = ({ store }) => {
+  // 添加环境检测辅助方法
+  store.$isServer = typeof window === 'undefined'
+  store.$isBrowser = !store.$isServer
+  
+  // 环境特定的辅助函数
+  store.$onServer = (fn) => {
+    if (store.$isServer) fn()
+  }
+  
+  store.$onClient = (fn) => {
+    if (store.$isBrowser) fn()
+  }
+}
+```
 
 **记忆要点总结：**
-- Nuxt集成：使用@pinia/nuxt模块自动配置
-- 状态传递：服务端状态序列化后传递给客户端
-- 环境区分：处理服务端和客户端的差异
-- 内存安全：避免服务端状态污染
+- **核心机制**:
+  - 服务端创建store并获取数据
+  - 序列化状态并发送到客户端
+  - 客户端恢复（hydrate）状态
+- **注意事项**:
+  - 每个请求需要新的store实例，避免状态污染
+  - 区分服务端和客户端的API调用
+  - 处理仅限客户端的功能（如localStorage）
+- **最佳实践**:
+  - 使用Nuxt时优先选择@pinia/nuxt模块
+  - 维护清晰的数据获取策略
+  - 使用环境检测避免跨环境问题
+  - 考虑数据预取与缓存策略
 
 ---
 
@@ -2733,7 +4536,7 @@ export function useAuth() {
 }
 ```
 
-**工作原理：**
+**工作原理与源码解析：**
 ```javascript
 // storeToRefs的简化实现原理
 function storeToRefs(store) {
@@ -2752,6 +4555,31 @@ function storeToRefs(store) {
   return refs
 }
 
+// 实际源码更复杂，处理了更多边界情况
+// 摘自 pinia/dist/pinia.mjs
+export function storeToRefs(store) {
+  // 检查输入是否为Store
+  if (isVue2) {
+    // ...Vue 2特殊处理
+  }
+  
+  // 创建结果对象
+  const refs = {}
+  // 排除不需要转换的属性
+  const nonReactiveKeys = /* ... */
+  
+  // 遍历store的所有key
+  for (const key in store) {
+    // 跳过非响应式属性
+    if (!nonReactiveKeys.includes(key)) {
+      // 使用toRef创建对store[key]的引用
+      refs[key] = toRef(store, key)
+    }
+  }
+  
+  return refs
+}
+
 // 对比直接解构和storeToRefs
 const store = useUserStore()
 
@@ -2762,11 +4590,29 @@ const { user } = store // user是静态值
 const { user } = storeToRefs(store) // user是ref，保持响应性
 ```
 
+**使用场景对比：**
+
+| 场景 | 不使用storeToRefs | 使用storeToRefs | 最佳选择 |
+|------|------------------|---------------|---------|
+| **需要解构state/getters** | ❌ 丢失响应性 | ✅ 保持响应性 | storeToRefs |
+| **解构actions** | ✅ 正常工作 | ✅ 正常工作<br>（但不必要） | 直接解构 |
+| **部分state经常变化** | ❌ 丢失响应性 | ✅ 只更新变化部分 | storeToRefs |
+| **在模板中使用store数据** | ❌ 模板不更新 | ✅ 视图自动更新 | storeToRefs |
+| **多store状态组合** | ❌ 静态复制 | ✅ 保持原始引用 | storeToRefs |
+
 **记忆要点总结：**
-- 作用：将store的响应式属性转换为ref，保持响应性
-- 使用场景：解构store的state和getters时必须使用
-- 不适用：actions不需要storeToRefs，直接解构即可
-- 原理：内部使用toRef和computed保持响应式连接
+- **原理**：将store的响应式属性转换为ref，保持响应式连接
+- **使用时机**：解构store的state和getters时必须使用
+- **不适用**：actions和方法不需要storeToRefs，直接解构即可
+- **技术细节**：
+  - 内部使用toRef保持响应式链接
+  - 对getters使用computed
+  - 排除特殊属性和方法
+- **实际益处**：
+  - 代码更简洁（避免store.property重复）
+  - 保持响应性
+  - 支持解构语法
+  - 易于在复杂组件中管理状态
 
 ---
 
@@ -3089,11 +4935,49 @@ const isAdmin = computed(() => user.value?.role === 'admin')
 </script>
 ```
 
+**TypeScript类型技巧：**
+
+| 技巧 | 说明 | 应用场景 |
+|------|------|---------|
+| **接口分离** | 将state、API响应等分为独立接口 | 减少重复、增强可维护性 |
+| **类型查询** | 使用`typeof`和`ReturnType` | 从现有代码获取类型 |
+| **类型联合** | 使用`\|`组合多个可能类型 | 处理多态状态 |
+| **类型断言** | 使用`as`明确类型 | 处理API响应 |
+| **泛型复用** | 使用泛型创建可重用store | 标准化CRUD操作 |
+| **类型推导** | 利用TS自动推导 | 减少手动类型注解 |
+| **只读属性** | 使用`readonly` | 防止状态意外修改 |
+| **类型导出** | 导出store类型 | 在其他文件中使用 |
+
+**Store类型导出与使用：**
+```typescript
+// 导出store的完整类型
+export const useUserStore = defineStore('user', { /* ... */ })
+export type UserStore = ReturnType<typeof useUserStore>
+
+// 在其他文件中使用
+import { UserStore } from '@/stores/user'
+
+function useUserFeature(store: UserStore) {
+  // 类型安全的store使用
+}
+```
+
 **记忆要点总结：**
-- 接口定义：为state、参数、返回值定义明确的接口
-- 自动推导：Pinia能自动推导大部分类型
-- 泛型支持：可以创建通用的类型化store
-- 类型安全：编译时检查，运行时安全
+- **类型定义策略**:
+  - 为state定义专用接口
+  - 使用联合类型处理可选状态
+  - 为复杂结构添加类型注解
+  - 将类型与实现分离便于复用
+- **类型安全增强**:
+  - 使用`as const`增强字面量类型
+  - 使用`satisfies`验证接口实现
+  - 导出store类型便于外部使用
+  - 使用`readonly`防止状态变异
+- **最佳实践**:
+  - 保持类型定义靠近使用位置
+  - 优先使用接口而非类型别名
+  - 利用TS自动推导减少冗余
+  - 为API集成设计类型安全边界
 
 ---
 
