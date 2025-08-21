@@ -163,6 +163,329 @@ export const useFetch = (url='',options={}){
 **问题本质解读：** 这道题考察组合式API的实际应用和边界情况处理，面试官想了解你是否能设计出健壮的可复用逻辑。
 
 **技术错误纠正：**
+- 原答案中缺少请求取消、重试、缓存等重要功能
+- 没有考虑组件卸载时的清理工作
+- 缺少响应式URL支持和类型安全
+- 错误处理过于简单，没有区分不同类型的错误
+
+**知识点系统梳理：**
+
+**useFetch核心功能：**
+- **状态管理**：loading、error、data状态的响应式管理
+- **请求控制**：支持取消、重试、超时等控制机制
+- **缓存策略**：避免重复请求，提升性能
+- **数据转换**：支持响应数据的预处理和转换
+- **错误处理**：完善的错误分类和处理机制
+
+**边界情况处理：**
+- **组件卸载**：自动取消进行中的请求
+- **并发请求**：处理快速连续的请求
+- **网络异常**：超时、断网、服务器错误等
+- **数据格式**：支持JSON、文本、二进制等多种格式
+
+**实战应用举例：**
+```typescript
+import { ref, unref, computed, watchEffect, onScopeDispose } from 'vue'
+
+interface UseFetchOptions<T = any> {
+  immediate?: boolean
+  timeout?: number
+  retry?: number
+  retryDelay?: number
+  cache?: boolean
+  transform?: (data: any) => T
+  onError?: (error: Error) => void
+  onSuccess?: (data: T) => void
+  headers?: Record<string, string>
+  method?: string
+  body?: any
+}
+
+interface UseFetchReturn<T> {
+  data: Ref<T | null>
+  error: Ref<Error | null>
+  isLoading: Ref<boolean>
+  isFinished: Ref<boolean>
+  execute: (url?: string, options?: RequestInit) => Promise<T | undefined>
+  cancel: () => void
+  refresh: () => Promise<T | undefined>
+  clearCache: () => void
+}
+
+export function useFetch<T = any>(
+  url: MaybeRef<string>,
+  options: UseFetchOptions<T> = {}
+): UseFetchReturn<T> {
+  const {
+    immediate = true,
+    timeout = 10000,
+    retry = 3,
+    retryDelay = 1000,
+    cache = true,
+    transform = (data) => data,
+    onError = () => {},
+    onSuccess = () => {},
+    headers = {},
+    method = 'GET',
+    body
+  } = options
+
+  // 响应式状态
+  const data = ref<T | null>(null)
+  const error = ref<Error | null>(null)
+  const isLoading = ref(false)
+  const isFinished = ref(false)
+  const abortController = ref<AbortController | null>(null)
+
+  // 缓存管理
+  const cache = new Map<string, { data: T; timestamp: number }>()
+  const CACHE_TTL = 5 * 60 * 1000 // 5分钟
+
+  // 生成缓存key
+  const getCacheKey = (url: string, options: RequestInit) => {
+    return JSON.stringify({ url, method: options.method, body: options.body })
+  }
+
+  // 检查缓存是否有效
+  const isCacheValid = (timestamp: number) => {
+    return Date.now() - timestamp < CACHE_TTL
+  }
+
+  // 执行请求
+  const execute = async (
+    executeUrl: string = unref(url),
+    executeOptions: RequestInit = {}
+  ): Promise<T | undefined> => {
+    const resolvedUrl = unref(executeUrl)
+    if (!resolvedUrl) {
+      throw new Error('URL is required')
+    }
+
+    const requestOptions: RequestInit = {
+      method,
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: body ? JSON.stringify(body) : undefined,
+      ...executeOptions
+    }
+
+    const cacheKey = getCacheKey(resolvedUrl, requestOptions)
+
+    // 检查缓存
+    if (cache && method === 'GET') {
+      const cached = cache.get(cacheKey)
+      if (cached && isCacheValid(cached.timestamp)) {
+        data.value = cached.data
+        isLoading.value = false
+        isFinished.value = true
+        onSuccess(cached.data)
+        return cached.data
+      }
+    }
+
+    // 取消之前的请求
+    if (abortController.value) {
+      abortController.value.abort()
+    }
+
+    abortController.value = new AbortController()
+    isLoading.value = true
+    error.value = null
+    isFinished.value = false
+
+    let retryCount = 0
+
+    const attemptFetch = async (): Promise<T | undefined> => {
+      try {
+        const response = await Promise.race([
+          fetch(resolvedUrl, {
+            ...requestOptions,
+            signal: abortController.value!.signal
+          }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Request timeout')), timeout)
+          )
+        ])
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        }
+
+        // 根据Content-Type处理响应
+        const contentType = response.headers.get('content-type')
+        let result: any
+
+        if (contentType?.includes('application/json')) {
+          result = await response.json()
+        } else if (contentType?.includes('text/')) {
+          result = await response.text()
+        } else {
+          result = await response.blob()
+        }
+
+        // 数据转换
+        const transformedData = transform(result)
+        data.value = transformedData
+
+        // 缓存结果（仅GET请求）
+        if (cache && method === 'GET') {
+          cache.set(cacheKey, {
+            data: transformedData,
+            timestamp: Date.now()
+          })
+        }
+
+        onSuccess(transformedData)
+        return transformedData
+
+      } catch (err) {
+        const error = err as Error
+
+        if (error.name === 'AbortError') {
+          return undefined
+        }
+
+        // 重试逻辑
+        if (retryCount < retry && shouldRetry(error)) {
+          retryCount++
+          console.log(`Retrying request (${retryCount}/${retry})...`)
+          await new Promise(resolve => setTimeout(resolve, retryDelay * retryCount))
+          return attemptFetch()
+        }
+
+        error.value = error
+        onError(error)
+        throw error
+      } finally {
+        isLoading.value = false
+        isFinished.value = true
+      }
+    }
+
+    return attemptFetch()
+  }
+
+  // 判断是否应该重试
+  const shouldRetry = (error: Error): boolean => {
+    // 网络错误或5xx服务器错误可以重试
+    return error.message.includes('fetch') ||
+           error.message.includes('timeout') ||
+           error.message.includes('HTTP 5')
+  }
+
+  // 取消请求
+  const cancel = () => {
+    if (abortController.value) {
+      abortController.value.abort()
+    }
+  }
+
+  // 重新请求
+  const refresh = () => execute()
+
+  // 清除缓存
+  const clearCache = () => {
+    cache.clear()
+  }
+
+  // 响应式URL监听
+  if (immediate) {
+    watchEffect(() => {
+      const resolvedUrl = unref(url)
+      if (resolvedUrl) {
+        execute(resolvedUrl)
+      }
+    })
+  }
+
+  // 组件卸载时清理
+  onScopeDispose(() => {
+    cancel()
+  })
+
+  return {
+    data: readonly(data),
+    error: readonly(error),
+    isLoading: readonly(isLoading),
+    isFinished: readonly(isFinished),
+    execute,
+    cancel,
+    refresh,
+    clearCache
+  }
+}
+
+// 使用示例
+export default {
+  setup() {
+    // 基本用法
+    const { data: users, error, isLoading } = useFetch<User[]>('/api/users')
+
+    // 带参数的请求
+    const userId = ref(1)
+    const { data: user } = useFetch(
+      computed(() => `/api/users/${userId.value}`),
+      {
+        transform: (data: any) => ({
+          ...data,
+          fullName: `${data.firstName} ${data.lastName}`
+        }),
+        onError: (error) => {
+          console.error('Failed to fetch user:', error)
+        }
+      }
+    )
+
+    // 手动触发
+    const { execute: searchUsers, data: searchResults } = useFetch<User[]>('/api/search', {
+      immediate: false,
+      method: 'POST'
+    })
+
+    const handleSearch = async (query: string) => {
+      try {
+        await searchUsers('/api/search', {
+          body: JSON.stringify({ query })
+        })
+      } catch (error) {
+        console.error('Search failed:', error)
+      }
+    }
+
+    return {
+      users,
+      user,
+      searchResults,
+      error,
+      isLoading,
+      handleSearch
+    }
+  }
+}
+```
+
+**使用场景对比：**
+
+| 场景 | 配置建议 | 说明 |
+|------|---------|------|
+| **数据列表** | `immediate: true, cache: true` | 自动加载，启用缓存 |
+| **用户搜索** | `immediate: false, retry: 1` | 手动触发，减少重试 |
+| **文件上传** | `timeout: 30000, cache: false` | 长超时，禁用缓存 |
+| **实时数据** | `cache: false, retry: 0` | 禁用缓存和重试 |
+
+**记忆要点总结：**
+- **核心功能**：状态管理、请求控制、缓存策略、数据转换
+- **边界处理**：取消、重试、超时、缓存、错误分类
+- **响应式支持**：动态URL、参数变化自动重新请求
+- **清理机制**：组件卸载时自动取消请求，防止内存泄漏
+- **类型安全**：完整的TypeScript类型定义
+- **最佳实践**：合理的默认配置，灵活的选项定制
+```
+
+## 深度分析与补充
+
+**问题本质解读：** 这道题考察组合式API的实际应用和边界情况处理，面试官想了解你是否能设计出健壮的可复用逻辑。
+
+**技术错误纠正：**
 1. `data.value = response.json()` 应为 `data.value = await response.json()`
 2. 缺少请求取消、重试、缓存等重要功能
 3. 没有考虑组件卸载时的清理工作
@@ -392,6 +715,304 @@ export default {
 
 **问题本质解读：** 这道题考察computed的缓存机制和依赖追踪，面试官想了解你是否理解Vue的性能优化原理。
 
+**技术错误纠正：**
+- 原答案过于简化，需要详细说明依赖收集的具体机制
+- 缺少条件依赖、深层依赖等复杂场景的说明
+- 没有提及computed的惰性计算特性
+
+**知识点系统梳理：**
+
+**computed缓存失效的触发条件：**
+1. **直接依赖变化**：computed函数中直接使用的响应式数据发生变化
+2. **间接依赖变化**：依赖的其他computed或响应式数据发生变化
+3. **深层依赖变化**：对象或数组的嵌套属性发生变化（如果被访问）
+4. **条件依赖变化**：在条件分支中访问的响应式数据发生变化
+5. **动态依赖变化**：运行时动态访问的响应式数据发生变化
+
+**缓存机制原理：**
+- **惰性计算**：只有在被访问时才执行计算
+- **脏标记**：依赖变化时标记为"脏"，下次访问时重新计算
+- **依赖追踪**：自动收集计算过程中访问的响应式数据
+- **缓存复用**：依赖未变化时直接返回缓存值
+
+**实战应用举例：**
+```javascript
+import { ref, reactive, computed, watch } from 'vue'
+
+export default {
+  setup() {
+    const user = reactive({
+      firstName: 'John',
+      lastName: 'Doe',
+      profile: {
+        age: 25,
+        email: 'john@example.com',
+        settings: {
+          theme: 'dark',
+          notifications: true
+        }
+      },
+      hobbies: ['reading', 'coding'],
+      posts: [
+        { id: 1, title: 'Vue 3 Guide', likes: 10 },
+        { id: 2, title: 'Composition API', likes: 15 }
+      ]
+    })
+
+    const showAge = ref(true)
+    const multiplier = ref(2)
+    const filter = ref('all')
+
+    // 1. 直接依赖 - firstName, lastName变化时失效
+    const fullName = computed(() => {
+      console.log('fullName computed')
+      return `${user.firstName} ${user.lastName}`
+    })
+
+    // 2. 间接依赖 - fullName变化时失效
+    const greeting = computed(() => {
+      console.log('greeting computed')
+      return `Hello, ${fullName.value}!`
+    })
+
+    // 3. 条件依赖 - showAge或user.profile.age变化时失效
+    const userInfo = computed(() => {
+      console.log('userInfo computed')
+      let info = fullName.value
+      if (showAge.value) {
+        // 只有当showAge为true时，age才会成为依赖
+        info += ` (${user.profile.age} years old)`
+      }
+      return info
+    })
+
+    // 4. 深层依赖 - 嵌套对象属性变化
+    const userSettings = computed(() => {
+      console.log('userSettings computed')
+      return {
+        theme: user.profile.settings.theme,
+        notifications: user.profile.settings.notifications,
+        email: user.profile.email
+      }
+    })
+
+    // 5. 数组依赖 - 数组内容变化时失效
+    const hobbyCount = computed(() => {
+      console.log('hobbyCount computed')
+      return user.hobbies.length
+    })
+
+    // 6. 复杂数组操作 - 数组元素属性变化
+    const totalLikes = computed(() => {
+      console.log('totalLikes computed')
+      return user.posts.reduce((sum, post) => sum + post.likes, 0)
+    })
+
+    // 7. 动态依赖 - 根据条件访问不同属性
+    const dynamicValue = computed(() => {
+      console.log('dynamicValue computed')
+      if (filter.value === 'age') {
+        return user.profile.age * multiplier.value
+      } else if (filter.value === 'posts') {
+        return user.posts.length * multiplier.value
+      } else {
+        return user.hobbies.length * multiplier.value
+      }
+    })
+
+    // 8. 计算属性链 - 多层依赖
+    const userSummary = computed(() => {
+      console.log('userSummary computed')
+      return {
+        name: fullName.value,
+        info: userInfo.value,
+        stats: {
+          hobbies: hobbyCount.value,
+          likes: totalLikes.value
+        }
+      }
+    })
+
+    // 测试缓存失效的函数
+    const testCacheInvalidation = () => {
+      console.log('=== 测试开始 ===')
+
+      // 第一次访问，会执行计算
+      console.log('1. 首次访问:', fullName.value) // 执行计算
+      console.log('2. 再次访问:', fullName.value) // 使用缓存
+
+      // 修改直接依赖，缓存失效
+      user.firstName = 'Jane'
+      console.log('3. 修改firstName后:', fullName.value) // 重新计算
+      console.log('4. 再次访问:', fullName.value) // 使用新缓存
+
+      // 修改无关数据，缓存不失效
+      user.profile.email = 'jane@example.com'
+      console.log('5. 修改email后:', fullName.value) // 使用缓存
+
+      // 条件依赖测试
+      console.log('6. 首次访问userInfo:', userInfo.value) // 执行计算
+      showAge.value = false
+      console.log('7. showAge改为false:', userInfo.value) // 重新计算
+      user.profile.age = 26
+      console.log('8. 修改age:', userInfo.value) // 使用缓存（age不再被访问）
+
+      // 深层依赖测试
+      console.log('9. 首次访问userSettings:', userSettings.value)
+      user.profile.settings.theme = 'light'
+      console.log('10. 修改theme:', userSettings.value) // 重新计算
+
+      // 数组依赖测试
+      console.log('11. 首次访问hobbyCount:', hobbyCount.value)
+      user.hobbies.push('swimming')
+      console.log('12. 添加hobby:', hobbyCount.value) // 重新计算
+
+      // 数组元素属性变化
+      console.log('13. 首次访问totalLikes:', totalLikes.value)
+      user.posts[0].likes = 20
+      console.log('14. 修改likes:', totalLikes.value) // 重新计算
+
+      // 动态依赖测试
+      filter.value = 'age'
+      console.log('15. filter=age:', dynamicValue.value) // 执行计算
+      user.profile.age = 30
+      console.log('16. 修改age:', dynamicValue.value) // 重新计算
+
+      filter.value = 'posts'
+      console.log('17. filter=posts:', dynamicValue.value) // 重新计算
+      user.profile.age = 35 // 此时age不再是依赖
+      console.log('18. 再次修改age:', dynamicValue.value) // 使用缓存
+    }
+
+    // 监听computed变化
+    watch(fullName, (newVal, oldVal) => {
+      console.log(`fullName changed: ${oldVal} -> ${newVal}`)
+    })
+
+    watch(userSummary, (newVal, oldVal) => {
+      console.log('userSummary changed:', newVal)
+    }, { deep: true })
+
+    return {
+      user,
+      showAge,
+      multiplier,
+      filter,
+      fullName,
+      greeting,
+      userInfo,
+      userSettings,
+      hobbyCount,
+      totalLikes,
+      dynamicValue,
+      userSummary,
+      testCacheInvalidation
+    }
+  }
+}
+```
+
+**缓存失效的内部机制：**
+```javascript
+// 简化版computed实现原理
+function computed(getter) {
+  let value
+  let dirty = true // 脏标记
+  const deps = new Set() // 依赖集合
+
+  const computedRef = {
+    get value() {
+      if (dirty) {
+        // 清除旧依赖
+        deps.forEach(dep => dep.removeEffect(effect))
+        deps.clear()
+
+        // 收集新依赖
+        const prevActiveEffect = activeEffect
+        activeEffect = effect
+
+        try {
+          value = getter()
+        } finally {
+          activeEffect = prevActiveEffect
+        }
+
+        dirty = false
+      }
+      return value
+    }
+  }
+
+  const effect = () => {
+    dirty = true // 标记为脏
+    // 触发依赖此computed的其他effect
+    triggerEffects(computedRef)
+  }
+
+  return computedRef
+}
+
+// 依赖收集示例
+function track(target, key) {
+  if (activeEffect) {
+    let depsMap = targetMap.get(target)
+    if (!depsMap) {
+      targetMap.set(target, (depsMap = new Map()))
+    }
+
+    let dep = depsMap.get(key)
+    if (!dep) {
+      depsMap.set(key, (dep = new Set()))
+    }
+
+    dep.add(activeEffect)
+    activeEffect.deps.add(dep)
+  }
+}
+```
+
+**性能优化技巧：**
+```javascript
+// 1. 避免在computed中进行昂贵操作
+const expensiveComputed = computed(() => {
+  // ❌ 避免在computed中进行网络请求
+  // return await fetchData()
+
+  // ✅ 使用缓存的数据进行计算
+  return cachedData.value.map(item => item.processed)
+})
+
+// 2. 合理使用shallowRef避免深层响应式
+const largeData = shallowRef({
+  items: new Array(10000).fill(0).map((_, i) => ({ id: i, value: i }))
+})
+
+const processedData = computed(() => {
+  // 只有largeData的引用变化才会重新计算
+  return largeData.value.items.filter(item => item.value > 100)
+})
+
+// 3. 使用computed缓存复杂计算
+const filteredAndSortedItems = computed(() => {
+  return items.value
+    .filter(item => item.active)
+    .sort((a, b) => a.priority - b.priority)
+    .slice(0, 10)
+})
+```
+
+**记忆要点总结：**
+- **触发条件**：任何被访问的响应式数据发生变化
+- **缓存机制**：脏标记（dirty flag）+ 依赖追踪
+- **性能优化**：只有依赖变化时才重新计算
+- **条件依赖**：只有在当前执行路径中访问的数据才会建立依赖
+- **深层依赖**：嵌套对象属性变化会触发重新计算
+- **最佳实践**：避免在computed中进行副作用操作
+
+## 深度分析与补充
+
+**问题本质解读：** 这道题考察computed的缓存机制和依赖追踪，面试官想了解你是否理解Vue的性能优化原理。
+
 **知识点系统梳理：**
 
 **computed缓存失效的触发条件：**
@@ -540,6 +1161,344 @@ vue3采用Proxy实现代理的底层逻辑，通过对数据的代理在数据�
 优势：
 
 限制：
+
+## 深度分析与补充
+
+**问题本质解读：** 这道题考察Vue 3响应式系统的底层实现原理，面试官想了解你是否理解Proxy相比Vue 2的Object.defineProperty的改进。
+
+**技术错误纠正：**
+- 原答案过于简化，缺少具体的优势和限制说明
+- 需要补充与Vue 2的对比和具体的使用场景
+- 缺少性能优化策略和最佳实践
+
+**知识点系统梳理：**
+
+**Proxy的优势：**
+1. **完整的拦截能力**：可以拦截13种操作（get、set、has、deleteProperty等）
+2. **动态属性支持**：可以拦截新增属性，无需预先定义
+3. **数组操作优化**：直接支持数组索引和length属性的监听
+4. **更好的性能**：避免了递归遍历所有属性
+5. **原生支持**：浏览器原生实现，性能更好
+
+**Proxy的限制：**
+1. **浏览器兼容性**：IE不支持，无法polyfill
+2. **嵌套对象处理**：需要递归代理嵌套对象
+3. **内存占用**：每个响应式对象都需要创建Proxy
+4. **调试困难**：代理对象在调试器中显示复杂
+
+**实战应用举例：**
+```javascript
+// Vue 3 reactive的简化实现
+const reactiveMap = new WeakMap()
+const readonlyMap = new WeakMap()
+const shallowReactiveMap = new WeakMap()
+
+// 判断是否为对象
+function isObject(val) {
+  return val !== null && typeof val === 'object'
+}
+
+// 判断是否为数组
+function isArray(val) {
+  return Array.isArray(val)
+}
+
+// 响应式实现
+function reactive(target) {
+  // 基本类型直接返回
+  if (!isObject(target)) {
+    console.warn('reactive() can only be called on objects')
+    return target
+  }
+
+  // 避免重复代理
+  if (reactiveMap.has(target)) {
+    return reactiveMap.get(target)
+  }
+
+  // 已经是代理对象
+  if (target.__v_isReactive) {
+    return target
+  }
+
+  const proxy = new Proxy(target, {
+    get(target, key, receiver) {
+      // 特殊key处理
+      if (key === '__v_isReactive') return true
+      if (key === '__v_raw') return target
+
+      const result = Reflect.get(target, key, receiver)
+
+      // 依赖收集
+      track(target, key)
+
+      // 嵌套对象递归代理
+      if (isObject(result)) {
+        return reactive(result)
+      }
+
+      return result
+    },
+
+    set(target, key, value, receiver) {
+      const oldValue = target[key]
+      const hadKey = hasOwn(target, key)
+      const result = Reflect.set(target, key, value, receiver)
+
+      // 避免原型链上的设置触发更新
+      if (target === toRaw(receiver)) {
+        if (!hadKey) {
+          // 新增属性
+          trigger(target, 'add', key, value)
+        } else if (hasChanged(value, oldValue)) {
+          // 修改属性
+          trigger(target, 'set', key, value, oldValue)
+        }
+      }
+
+      return result
+    },
+
+    has(target, key) {
+      const result = Reflect.has(target, key)
+      if (!isSymbol(key) || !builtInSymbols.has(key)) {
+        track(target, key)
+      }
+      return result
+    },
+
+    deleteProperty(target, key) {
+      const hadKey = hasOwn(target, key)
+      const oldValue = target[key]
+      const result = Reflect.deleteProperty(target, key)
+
+      if (result && hadKey) {
+        trigger(target, 'delete', key, undefined, oldValue)
+      }
+
+      return result
+    },
+
+    ownKeys(target) {
+      track(target, isArray(target) ? 'length' : ITERATE_KEY)
+      return Reflect.ownKeys(target)
+    }
+  })
+
+  reactiveMap.set(target, proxy)
+  return proxy
+}
+
+// 浅层响应式实现
+function shallowReactive(target) {
+  if (!isObject(target)) {
+    return target
+  }
+
+  if (shallowReactiveMap.has(target)) {
+    return shallowReactiveMap.get(target)
+  }
+
+  const proxy = new Proxy(target, {
+    get(target, key, receiver) {
+      if (key === '__v_isReactive') return true
+      if (key === '__v_raw') return target
+
+      const result = Reflect.get(target, key, receiver)
+      track(target, key)
+
+      // 浅层响应式不递归代理嵌套对象
+      return result
+    },
+
+    set(target, key, value, receiver) {
+      const oldValue = target[key]
+      const result = Reflect.set(target, key, value, receiver)
+
+      if (hasChanged(value, oldValue)) {
+        trigger(target, 'set', key, value, oldValue)
+      }
+
+      return result
+    }
+  })
+
+  shallowReactiveMap.set(target, proxy)
+  return proxy
+}
+
+// 只读代理实现
+function readonly(target) {
+  if (!isObject(target)) {
+    return target
+  }
+
+  if (readonlyMap.has(target)) {
+    return readonlyMap.get(target)
+  }
+
+  const proxy = new Proxy(target, {
+    get(target, key, receiver) {
+      if (key === '__v_isReadonly') return true
+      if (key === '__v_raw') return target
+
+      const result = Reflect.get(target, key, receiver)
+
+      // 只读对象也需要依赖收集
+      track(target, key)
+
+      // 递归只读
+      if (isObject(result)) {
+        return readonly(result)
+      }
+
+      return result
+    },
+
+    set() {
+      console.warn('Set operation on readonly object is not allowed')
+      return true
+    },
+
+    deleteProperty() {
+      console.warn('Delete operation on readonly object is not allowed')
+      return true
+    }
+  })
+
+  readonlyMap.set(target, proxy)
+  return proxy
+}
+
+// 使用示例
+const state = reactive({
+  count: 0,
+  user: {
+    name: 'John',
+    hobbies: ['reading']
+  },
+  items: [1, 2, 3]
+})
+
+// 1. 动态属性添加 - Vue 2中需要Vue.set
+state.newProp = 'new value' // ✅ 自动响应式
+console.log('Added new property:', state.newProp)
+
+// 2. 数组操作 - Vue 2中需要特殊处理
+state.user.hobbies.push('coding') // ✅ 自动响应式
+state.user.hobbies[0] = 'writing' // ✅ 自动响应式
+state.items[0] = 10 // ✅ 自动响应式
+
+// 3. 属性删除
+delete state.newProp // ✅ 自动响应式
+
+// 4. 嵌套对象
+state.user.profile = { age: 25 } // ✅ 自动响应式
+state.user.profile.age = 26 // ✅ 自动响应式
+
+// 5. 数组方法
+state.items.push(4) // ✅ 自动响应式
+state.items.splice(1, 1) // ✅ 自动响应式
+```
+
+**与Vue 2的对比：**
+```javascript
+// Vue 2 - Object.defineProperty的限制
+const data = {
+  count: 0,
+  items: ['a', 'b']
+}
+
+// ❌ 新增属性不响应
+data.newProp = 'value' // 需要Vue.set(data, 'newProp', 'value')
+
+// ❌ 数组索引不响应
+data.items[0] = 'new value' // 需要Vue.set(data.items, 0, 'new value')
+
+// ❌ 数组长度不响应
+data.items.length = 0 // 需要特殊处理
+
+// ❌ 属性删除不响应
+delete data.count // 需要Vue.delete(data, 'count')
+
+// Vue 3 - Proxy的改进
+const state = reactive({
+  count: 0,
+  items: ['a', 'b']
+})
+
+// ✅ 全部自动响应式
+state.newProp = 'value'
+state.items[0] = 'new value'
+state.items.length = 0
+delete state.count
+```
+
+**性能优化策略：**
+```javascript
+// 1. 使用shallowReactive避免深层代理
+const shallowState = shallowReactive({
+  count: 0,
+  largeObject: { /* 大量数据 */ }
+})
+
+// 2. 使用markRaw标记不需要响应式的对象
+const state = reactive({
+  data: markRaw({
+    thirdPartyLib: new SomeLibrary(),
+    largeDataSet: new Array(10000).fill(0)
+  })
+})
+
+// 3. 使用readonly创建只读代理
+const readonlyState = readonly(state)
+
+// 4. 使用toRaw获取原始对象
+const rawState = toRaw(state)
+
+// 5. 条件性响应式
+const conditionalReactive = (data, shouldBeReactive) => {
+  return shouldBeReactive ? reactive(data) : markRaw(data)
+}
+```
+
+**调试技巧：**
+```javascript
+// 1. 检查对象是否为响应式
+function isReactive(obj) {
+  return !!(obj && obj.__v_isReactive)
+}
+
+// 2. 检查对象是否为只读
+function isReadonly(obj) {
+  return !!(obj && obj.__v_isReadonly)
+}
+
+// 3. 获取原始对象
+function toRaw(obj) {
+  return obj && obj.__v_raw || obj
+}
+
+// 4. 调试响应式对象
+const debugReactive = (obj, label = 'reactive') => {
+  console.log(`${label}:`, {
+    isReactive: isReactive(obj),
+    isReadonly: isReadonly(obj),
+    raw: toRaw(obj)
+  })
+}
+
+// 使用示例
+const state = reactive({ count: 0 })
+debugReactive(state, 'state')
+```
+
+**记忆要点总结：**
+- **优势**：完整拦截、动态属性、数组支持、更好性能
+- **限制**：IE兼容性、嵌套处理、内存占用、调试复杂
+- **改进**：相比Vue 2解决了动态属性和数组监听问题
+- **优化**：shallowReactive、markRaw、readonly等API
+- **最佳实践**：根据需求选择合适的响应式API
 
 ## 深度分析与补充
 
@@ -719,6 +1678,467 @@ const readonlyState = readonly(state)
 **如何实现防抖/节流的 composable？要注意依赖问题吗？**
 
 ~~组合函数实现逻辑复用，可以在组合函数内部函数调用上使用节流和防抖，实现调用优化。~~
+
+## 深度分析与补充
+
+**问题本质解读：** 这道题考察组合式API的实际应用和性能优化技巧，面试官想了解你是否能处理函数依赖和内存泄漏问题。
+
+**技术错误纠正：**
+- 原答案被划掉说明认识到了错误，但缺少正确的实现
+- 需要考虑闭包依赖、内存泄漏、this绑定等问题
+- 应该提供完整的防抖和节流实现
+
+**知识点系统梳理：**
+
+**防抖与节流的区别：**
+- **防抖（Debounce）**：延迟执行，重复调用会重置定时器
+- **节流（Throttle）**：限制执行频率，固定时间间隔内只执行一次
+- **应用场景**：搜索输入用防抖，滚动事件用节流
+
+**依赖问题处理：**
+- **闭包依赖**：确保函数能访问到最新的响应式数据
+- **内存泄漏**：组件卸载时清理定时器
+- **this绑定**：保持正确的执行上下文
+
+**实战应用举例：**
+```javascript
+import { ref, unref, onUnmounted, getCurrentScope, onScopeDispose } from 'vue'
+
+// 防抖实现
+export function useDebounce(fn, delay = 300, options = {}) {
+  const { immediate = false, maxWait } = options
+
+  let timeoutId = null
+  let maxTimeoutId = null
+  let lastCallTime = 0
+  let lastInvokeTime = 0
+
+  const debounced = function(...args) {
+    const currentTime = Date.now()
+    const timeSinceLastCall = currentTime - lastCallTime
+    const timeSinceLastInvoke = currentTime - lastInvokeTime
+
+    lastCallTime = currentTime
+
+    // 清除之前的定时器
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+    }
+
+    // 立即执行逻辑
+    if (immediate && timeSinceLastInvoke >= delay) {
+      lastInvokeTime = currentTime
+      return fn.apply(this, args)
+    }
+
+    // 设置防抖定时器
+    timeoutId = setTimeout(() => {
+      lastInvokeTime = Date.now()
+      timeoutId = null
+      maxTimeoutId = null
+
+      if (!immediate) {
+        return fn.apply(this, args)
+      }
+    }, delay)
+
+    // 最大等待时间处理
+    if (maxWait && !maxTimeoutId && timeSinceLastInvoke >= maxWait) {
+      maxTimeoutId = setTimeout(() => {
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+          timeoutId = null
+        }
+        lastInvokeTime = Date.now()
+        maxTimeoutId = null
+        return fn.apply(this, args)
+      }, maxWait - timeSinceLastInvoke)
+    }
+  }
+
+  // 取消防抖
+  debounced.cancel = () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+      timeoutId = null
+    }
+    if (maxTimeoutId) {
+      clearTimeout(maxTimeoutId)
+      maxTimeoutId = null
+    }
+    lastCallTime = 0
+    lastInvokeTime = 0
+  }
+
+  // 立即执行
+  debounced.flush = function() {
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+      lastInvokeTime = Date.now()
+      timeoutId = null
+      maxTimeoutId = null
+      return fn.apply(this, arguments)
+    }
+  }
+
+  // 检查是否有待执行的调用
+  debounced.pending = () => {
+    return timeoutId !== null
+  }
+
+  // 组件卸载时自动清理
+  if (getCurrentScope()) {
+    onScopeDispose(() => {
+      debounced.cancel()
+    })
+  }
+
+  return debounced
+}
+
+// 节流实现
+export function useThrottle(fn, delay = 300, options = {}) {
+  const { leading = true, trailing = true } = options
+
+  let lastExecTime = 0
+  let timeoutId = null
+  let lastArgs = null
+  let lastThis = null
+
+  const throttled = function(...args) {
+    const currentTime = Date.now()
+    lastArgs = args
+    lastThis = this
+
+    // 首次执行或达到执行间隔
+    if (leading && (currentTime - lastExecTime >= delay)) {
+      lastExecTime = currentTime
+      return fn.apply(this, args)
+    }
+
+    // 设置尾部执行
+    if (trailing && !timeoutId) {
+      const remainingTime = delay - (currentTime - lastExecTime)
+
+      timeoutId = setTimeout(() => {
+        lastExecTime = Date.now()
+        timeoutId = null
+
+        if (trailing) {
+          return fn.apply(lastThis, lastArgs)
+        }
+      }, remainingTime)
+    }
+  }
+
+  // 取消节流
+  throttled.cancel = () => {
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+      timeoutId = null
+    }
+    lastExecTime = 0
+    lastArgs = null
+    lastThis = null
+  }
+
+  // 立即执行
+  throttled.flush = function() {
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+      lastExecTime = Date.now()
+      timeoutId = null
+      return fn.apply(lastThis, lastArgs)
+    }
+  }
+
+  // 组件卸载时自动清理
+  if (getCurrentScope()) {
+    onScopeDispose(() => {
+      throttled.cancel()
+    })
+  }
+
+  return throttled
+}
+
+// 响应式防抖
+export function useDebouncedRef(value, delay = 300) {
+  const debouncedValue = ref(unref(value))
+
+  const updateValue = useDebounce((newValue) => {
+    debouncedValue.value = newValue
+  }, delay)
+
+  watchEffect(() => {
+    updateValue(unref(value))
+  })
+
+  return debouncedValue
+}
+
+// 响应式节流
+export function useThrottledRef(value, delay = 300) {
+  const throttledValue = ref(unref(value))
+
+  const updateValue = useThrottle((newValue) => {
+    throttledValue.value = newValue
+  }, delay)
+
+  watchEffect(() => {
+    updateValue(unref(value))
+  })
+
+  return throttledValue
+}
+
+// 高级防抖Hook - 支持异步函数
+export function useAsyncDebounce(asyncFn, delay = 300) {
+  const loading = ref(false)
+  const error = ref(null)
+  const data = ref(null)
+
+  let currentPromise = null
+
+  const debouncedFn = useDebounce(async (...args) => {
+    loading.value = true
+    error.value = null
+
+    try {
+      // 取消之前的请求
+      if (currentPromise && currentPromise.cancel) {
+        currentPromise.cancel()
+      }
+
+      const promise = asyncFn(...args)
+      currentPromise = promise
+
+      const result = await promise
+      data.value = result
+      return result
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        error.value = err
+        throw err
+      }
+    } finally {
+      loading.value = false
+      currentPromise = null
+    }
+  }, delay)
+
+  return {
+    execute: debouncedFn,
+    cancel: debouncedFn.cancel,
+    flush: debouncedFn.flush,
+    pending: debouncedFn.pending,
+    loading: readonly(loading),
+    error: readonly(error),
+    data: readonly(data)
+  }
+}
+```
+
+**使用示例：**
+```javascript
+// 搜索组件示例
+export default {
+  setup() {
+    const searchQuery = ref('')
+    const searchResults = ref([])
+    const loading = ref(false)
+
+    // 防抖搜索
+    const debouncedSearch = useDebounce(async (query) => {
+      if (!query.trim()) {
+        searchResults.value = []
+        return
+      }
+
+      loading.value = true
+      try {
+        const results = await searchAPI(query)
+        searchResults.value = results
+      } catch (error) {
+        console.error('Search failed:', error)
+      } finally {
+        loading.value = false
+      }
+    }, 500)
+
+    // 监听搜索查询变化
+    watch(searchQuery, (newQuery) => {
+      debouncedSearch(newQuery)
+    })
+
+    // 滚动加载更多
+    const loadMore = useThrottle(async () => {
+      if (loading.value) return
+
+      loading.value = true
+      try {
+        const moreResults = await loadMoreAPI()
+        searchResults.value.push(...moreResults)
+      } finally {
+        loading.value = false
+      }
+    }, 1000)
+
+    return {
+      searchQuery,
+      searchResults,
+      loading,
+      loadMore
+    }
+  }
+}
+
+// 表单验证示例
+export default {
+  setup() {
+    const formData = reactive({
+      email: '',
+      username: '',
+      password: ''
+    })
+
+    const errors = reactive({})
+
+    // 防抖验证
+    const validateEmail = useDebounce(async (email) => {
+      if (!email) {
+        errors.email = ''
+        return
+      }
+
+      try {
+        const isValid = await validateEmailAPI(email)
+        errors.email = isValid ? '' : '邮箱已被使用'
+      } catch (error) {
+        errors.email = '验证失败，请重试'
+      }
+    }, 800)
+
+    const validateUsername = useDebounce(async (username) => {
+      if (!username) {
+        errors.username = ''
+        return
+      }
+
+      try {
+        const isAvailable = await checkUsernameAPI(username)
+        errors.username = isAvailable ? '' : '用户名已被占用'
+      } catch (error) {
+        errors.username = '验证失败，请重试'
+      }
+    }, 600)
+
+    // 监听表单字段变化
+    watch(() => formData.email, validateEmail)
+    watch(() => formData.username, validateUsername)
+
+    return {
+      formData,
+      errors
+    }
+  }
+}
+
+// 滚动事件处理示例
+export default {
+  setup() {
+    const scrollY = ref(0)
+    const isScrollingDown = ref(false)
+    const showBackToTop = ref(false)
+
+    // 节流处理滚动事件
+    const handleScroll = useThrottle(() => {
+      const currentScrollY = window.scrollY
+      isScrollingDown.value = currentScrollY > scrollY.value
+      scrollY.value = currentScrollY
+      showBackToTop.value = currentScrollY > 300
+    }, 100)
+
+    onMounted(() => {
+      window.addEventListener('scroll', handleScroll)
+    })
+
+    onUnmounted(() => {
+      window.removeEventListener('scroll', handleScroll)
+      handleScroll.cancel() // 清理定时器
+    })
+
+    return {
+      scrollY: readonly(scrollY),
+      isScrollingDown: readonly(isScrollingDown),
+      showBackToTop: readonly(showBackToTop)
+    }
+  }
+}
+```
+
+**依赖问题解决方案：**
+```javascript
+// 1. 闭包依赖问题
+export function useSmartDebounce(fn, delay = 300) {
+  const fnRef = ref(fn)
+
+  // 更新函数引用
+  watchEffect(() => {
+    fnRef.value = fn
+  })
+
+  const debouncedFn = useDebounce((...args) => {
+    // 总是调用最新的函数
+    return fnRef.value(...args)
+  }, delay)
+
+  return debouncedFn
+}
+
+// 2. 响应式依赖处理
+export function useReactiveDebounce(getter, delay = 300) {
+  const result = ref()
+
+  const debouncedUpdate = useDebounce(() => {
+    result.value = getter()
+  }, delay)
+
+  watchEffect(() => {
+    debouncedUpdate()
+  })
+
+  return readonly(result)
+}
+
+// 3. 内存泄漏防护
+export function useSafeDebounce(fn, delay = 300) {
+  const isActive = ref(true)
+
+  const safeFn = (...args) => {
+    if (isActive.value) {
+      return fn(...args)
+    }
+  }
+
+  const debouncedFn = useDebounce(safeFn, delay)
+
+  onUnmounted(() => {
+    isActive.value = false
+    debouncedFn.cancel()
+  })
+
+  return debouncedFn
+}
+```
+
+**记忆要点总结：**
+- **防抖**：延迟执行，重复调用会重置定时器
+- **节流**：限制执行频率，固定时间间隔内只执行一次
+- **依赖问题**：闭包更新、内存清理、上下文绑定
+- **响应式支持**：结合watch实现响应式防抖/节流
+- **异步处理**：支持异步函数的防抖和取消机制
+- **最佳实践**：组件卸载时自动清理，提供cancel和flush方法
 
 ## 深度分析与补充
 
@@ -2175,7 +3595,20 @@ const loadUserData = async (userId) => {
 
 **问题本质解读：** 这道题考察Vue 3响应式系统的边界情况，面试官想了解你是否理解响应式对象的引用替换问题。
 
+**技术错误纠正：**
+- 原答案列举了解决方案但缺少具体实现和原理说明
+- 需要补充为什么直接赋值会丢失响应性的原理
+- 缺少深层嵌套对象的处理方案和性能考虑
+
 **知识点系统梳理：**
+
+**响应性丢失的原理：**
+- **Proxy代理机制**：reactive创建的是对象的Proxy代理
+- **引用替换问题**：直接赋值新对象会替换Proxy引用
+- **依赖追踪失效**：新对象没有建立响应式依赖关系
+- **视图更新中断**：组件无法感知到新对象的变化
+
+**解决方案对比：**
 
 **问题场景：**
 ```javascript
@@ -2213,50 +3646,275 @@ const replaceState = (newData) => {
 }
 ```
 
-**完整解决方案：**
+**实战应用举例：**
 ```javascript
-// 通用的响应式更新函数
-export function updateReactive(target, source) {
-  // 清除旧属性
-  Object.keys(target).forEach(key => {
-    if (!(key in source)) {
-      delete target[key]
-    }
+import { reactive, ref, computed, watch } from 'vue'
+
+// 1. 问题演示
+const problemDemo = () => {
+  const state = reactive({
+    user: { name: 'John', age: 25 },
+    settings: { theme: 'dark' }
   })
+
+  // ❌ 错误做法 - 丢失响应性
+  state.user = { name: 'Jane', age: 30 }
+  // 此时state.user不再是响应式的，视图不会更新
+
+  // ✅ 正确做法 - 保持响应性
+  Object.assign(state.user, { name: 'Jane', age: 30 })
+  // 或者逐个赋值
+  state.user.name = 'Jane'
+  state.user.age = 30
+}
+
+// 2. 通用的响应式更新函数
+export function updateReactive(target, source, options = {}) {
+  const { deep = true, deleteOldKeys = true } = options
+
+  if (!target || !source || typeof target !== 'object' || typeof source !== 'object') {
+    return
+  }
+
+  // 删除不存在的旧属性
+  if (deleteOldKeys) {
+    Object.keys(target).forEach(key => {
+      if (!(key in source)) {
+        delete target[key]
+      }
+    })
+  }
 
   // 更新/添加新属性
   Object.keys(source).forEach(key => {
-    if (typeof source[key] === 'object' && source[key] !== null) {
-      if (typeof target[key] === 'object' && target[key] !== null) {
-        // 递归更新嵌套对象
-        updateReactive(target[key], source[key])
+    const sourceValue = source[key]
+    const targetValue = target[key]
+
+    if (sourceValue === null || typeof sourceValue !== 'object') {
+      // 基本类型或null直接赋值
+      target[key] = sourceValue
+    } else if (Array.isArray(sourceValue)) {
+      // 数组处理
+      if (Array.isArray(targetValue)) {
+        // 清空现有数组并添加新元素
+        targetValue.splice(0, targetValue.length, ...sourceValue)
       } else {
-        // 新的嵌套对象
-        target[key] = reactive(source[key])
+        target[key] = reactive([...sourceValue])
       }
     } else {
-      // 基本类型直接赋值
-      target[key] = source[key]
+      // 对象处理
+      if (targetValue && typeof targetValue === 'object' && !Array.isArray(targetValue)) {
+        if (deep) {
+          // 递归更新嵌套对象
+          updateReactive(targetValue, sourceValue, options)
+        } else {
+          // 浅层更新
+          Object.assign(targetValue, sourceValue)
+        }
+      } else {
+        // 创建新的响应式对象
+        target[key] = reactive(sourceValue)
+      }
     }
   })
 }
 
-// 使用示例
-const state = reactive({
-  user: { name: 'John', age: 25, profile: { email: 'john@example.com' } },
-  settings: { theme: 'dark', lang: 'en' }
-})
+// 3. 高级更新策略
+export class ReactiveUpdater {
+  constructor() {
+    this.updateHistory = []
+    this.maxHistorySize = 10
+  }
 
-// 安全的整体替换
-const newUserData = {
-  name: 'Jane',
-  age: 30,
-  profile: { email: 'jane@example.com', phone: '123-456-7890' }
+  // 带历史记录的更新
+  updateWithHistory(target, source, label = 'update') {
+    // 保存更新前的状态
+    const snapshot = JSON.parse(JSON.stringify(target))
+    this.updateHistory.push({
+      label,
+      timestamp: Date.now(),
+      before: snapshot
+    })
+
+    // 限制历史记录大小
+    if (this.updateHistory.length > this.maxHistorySize) {
+      this.updateHistory.shift()
+    }
+
+    // 执行更新
+    updateReactive(target, source)
+  }
+
+  // 回滚到上一个状态
+  rollback(target) {
+    const lastState = this.updateHistory.pop()
+    if (lastState) {
+      updateReactive(target, lastState.before)
+      return true
+    }
+    return false
+  }
+
+  // 获取更新历史
+  getHistory() {
+    return [...this.updateHistory]
+  }
 }
 
-updateReactive(state.user, newUserData)
-// 现在state.user保持响应性，且包含所有新数据
+// 4. 组件中的使用示例
+export default {
+  setup() {
+    const state = reactive({
+      user: {
+        id: 1,
+        name: 'John',
+        email: 'john@example.com',
+        profile: {
+          avatar: 'avatar1.jpg',
+          bio: 'Developer',
+          preferences: {
+            theme: 'dark',
+            language: 'en'
+          }
+        }
+      },
+      posts: [
+        { id: 1, title: 'Post 1', content: 'Content 1' },
+        { id: 2, title: 'Post 2', content: 'Content 2' }
+      ]
+    })
+
+    const updater = new ReactiveUpdater()
+
+    // 更新用户信息
+    const updateUser = (newUserData) => {
+      updater.updateWithHistory(state.user, newUserData, 'user_update')
+    }
+
+    // 更新用户偏好
+    const updatePreferences = (newPrefs) => {
+      updateReactive(state.user.profile.preferences, newPrefs)
+    }
+
+    // 替换文章列表
+    const updatePosts = (newPosts) => {
+      // 清空现有文章并添加新文章
+      state.posts.splice(0, state.posts.length, ...newPosts)
+    }
+
+    // 安全的API数据更新
+    const fetchAndUpdateUser = async (userId) => {
+      try {
+        const response = await fetch(`/api/users/${userId}`)
+        const userData = await response.json()
+
+        // 安全更新，保持响应性
+        updateUser(userData)
+      } catch (error) {
+        console.error('Failed to fetch user:', error)
+      }
+    }
+
+    // 表单数据同步
+    const syncFormData = (formData) => {
+      // 只更新表单相关字段，不删除其他字段
+      updateReactive(state.user, formData, { deleteOldKeys: false })
+    }
+
+    // 监听状态变化
+    watch(
+      () => state.user,
+      (newUser, oldUser) => {
+        console.log('User updated:', newUser)
+        // 可以在这里执行副作用，如保存到localStorage
+        localStorage.setItem('user', JSON.stringify(newUser))
+      },
+      { deep: true }
+    )
+
+    // 计算属性
+    const userDisplayName = computed(() => {
+      return state.user.name || state.user.email || 'Unknown User'
+    })
+
+    return {
+      state,
+      updateUser,
+      updatePreferences,
+      updatePosts,
+      fetchAndUpdateUser,
+      syncFormData,
+      userDisplayName,
+      rollback: () => updater.rollback(state.user),
+      getUpdateHistory: () => updater.getHistory()
+    }
+  }
+}
+
+// 5. 性能优化版本
+export function updateReactiveOptimized(target, source) {
+  // 使用$patch进行批量更新，减少触发次数
+  if (target.$patch && typeof target.$patch === 'function') {
+    // 如果是Pinia store，使用$patch
+    target.$patch(source)
+    return
+  }
+
+  // 批量更新，减少响应式触发
+  const updates = {}
+  let hasChanges = false
+
+  Object.keys(source).forEach(key => {
+    if (target[key] !== source[key]) {
+      updates[key] = source[key]
+      hasChanges = true
+    }
+  })
+
+  if (hasChanges) {
+    Object.assign(target, updates)
+  }
+}
+
+// 6. 类型安全的更新（TypeScript）
+interface UpdateOptions {
+  deep?: boolean
+  deleteOldKeys?: boolean
+  validate?: (key: string, value: any) => boolean
+}
+
+export function updateReactiveTyped<T extends Record<string, any>>(
+  target: T,
+  source: Partial<T>,
+  options: UpdateOptions = {}
+): void {
+  const { validate } = options
+
+  Object.keys(source).forEach(key => {
+    const value = source[key]
+
+    // 类型验证
+    if (validate && !validate(key, value)) {
+      console.warn(`Validation failed for key: ${key}`)
+      return
+    }
+
+    // 执行更新
+    if (key in target) {
+      (target as any)[key] = value
+    }
+  })
+}
 ```
+
+**使用场景对比：**
+
+| 方法 | 优点 | 缺点 | 适用场景 |
+|------|------|------|----------|
+| **Object.assign** | 简单快速 | 浅层合并 | 简单对象更新 |
+| **逐个赋值** | 精确控制 | 代码冗长 | 少量属性更新 |
+| **updateReactive** | 深层更新 | 性能开销 | 复杂嵌套对象 |
+| **数组splice** | 保持引用 | 语法复杂 | 数组整体替换 |
 
 **记忆要点总结：**
 - 问题：直接赋值新对象会丢失响应性
@@ -2274,6 +3932,11 @@ updateReactive(state.user, newUserData)
 
 **问题本质解读：** 这道题考察Vue 3组件测试的完整策略，面试官想了解你是否掌握现代前端测试的最佳实践。
 
+**技术错误纠正：**
+- 原答案只提到了Vitest，缺少完整的测试策略和工具链
+- 需要补充组件测试的具体方法和最佳实践
+- 缺少Composition API、响应式系统等Vue 3特性的测试方法
+
 **知识点系统梳理：**
 
 **测试工具栈：**
@@ -2282,6 +3945,13 @@ updateReactive(state.user, newUserData)
 3. **DOM环境**: jsdom、happy-dom
 4. **断言库**: expect（内置）、chai
 5. **覆盖率**: c8、istanbul
+
+**Vue 3测试特点：**
+- **Composition API测试**：独立测试组合式函数
+- **响应式系统测试**：测试ref、reactive、computed等
+- **生命周期测试**：测试setup、onMounted等钩子
+- **Teleport测试**：测试传送门组件
+- **Suspense测试**：测试异步组件加载
 
 **完整测试示例：**
 ```javascript
@@ -2558,10 +4228,12 @@ const bestPractices = [
 ```
 
 **记忆要点总结：**
-- 工具栈：Vitest + @vue/test-utils + jsdom
-- 测试类型：渲染、props、events、异步、错误处理
-- 最佳实践：行为测试、独立性、边界情况
-- 配置：环境设置、覆盖率、别名配置
+- **工具栈**：Vitest + @vue/test-utils + jsdom + c8覆盖率
+- **测试类型**：组件渲染、props验证、事件触发、异步操作、错误处理
+- **Vue 3特性**：Composition API、响应式系统、生命周期钩子测试
+- **最佳实践**：测试行为而非实现、保持测试独立、适当使用mock
+- **配置要点**：环境设置、覆盖率配置、路径别名、全局插件
+- **测试策略**：单元测试为主、集成测试补充、端到端测试验证
 
 ---
 
