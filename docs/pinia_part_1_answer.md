@@ -1347,18 +1347,6 @@ const handleSubmit = () => {
 </script>
 ```
 
-**记忆要点总结：**
-- 完美集成：Pinia store + Composition API
-- 扩展功能：在composables中使用store，添加业务逻辑
-- 代码复用：将常用的store操作封装成composables
-- 最佳实践：单一职责、可测试、易维护
-
----
-
-**如何在 Pinia 中进行异步操作？（示例）**
-
-可以在actions定义的函数执行异步操作 （async await）
-
 ## 深度分析与补充
 
 **问题本质解读：** 这道题考察Pinia中异步操作的处理方式，面试官想了解你是否掌握异步状态管理的最佳实践。
@@ -1841,7 +1829,197 @@ const pinia = createPinia()
 pinia.use(piniaPersistedStatePlugin)
 ```
 
-**3. 基于watch的简单持久化：**
+**3. 高级持久化策略：**
+
+```javascript
+// 分层存储策略
+export const useAppStore = defineStore('app', {
+  state: () => ({
+    // 敏感数据 - 不持久化
+    temporaryData: null,
+
+    // 会话数据 - sessionStorage
+    sessionData: {
+      currentTab: 'home',
+      scrollPosition: 0
+    },
+
+    // 用户偏好 - localStorage
+    userPreferences: {
+      theme: 'light',
+      language: 'en',
+      fontSize: 'medium'
+    },
+
+    // 缓存数据 - IndexedDB
+    cachedData: new Map()
+  }),
+
+  persist: [
+    {
+      key: 'app-session',
+      storage: sessionStorage,
+      paths: ['sessionData']
+    },
+    {
+      key: 'app-preferences',
+      storage: localStorage,
+      paths: ['userPreferences']
+    }
+  ]
+})
+
+// IndexedDB持久化
+class IndexedDBPersistence {
+  constructor(dbName = 'app-store', version = 1) {
+    this.dbName = dbName
+    this.version = version
+    this.db = null
+  }
+
+  async init() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, this.version)
+
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => {
+        this.db = request.result
+        resolve(this.db)
+      }
+
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result
+        if (!db.objectStoreNames.contains('store')) {
+          db.createObjectStore('store', { keyPath: 'key' })
+        }
+      }
+    })
+  }
+
+  async save(key, data) {
+    if (!this.db) await this.init()
+
+    const transaction = this.db.transaction(['store'], 'readwrite')
+    const store = transaction.objectStore('store')
+
+    return new Promise((resolve, reject) => {
+      const request = store.put({ key, data, timestamp: Date.now() })
+      request.onsuccess = () => resolve()
+      request.onerror = () => reject(request.error)
+    })
+  }
+
+  async load(key) {
+    if (!this.db) await this.init()
+
+    const transaction = this.db.transaction(['store'], 'readonly')
+    const store = transaction.objectStore('store')
+
+    return new Promise((resolve, reject) => {
+      const request = store.get(key)
+      request.onsuccess = () => {
+        const result = request.result
+        resolve(result ? result.data : null)
+      }
+      request.onerror = () => reject(request.error)
+    })
+  }
+}
+
+// 使用IndexedDB的store
+export const useCacheStore = defineStore('cache', () => {
+  const cache = ref(new Map())
+  const persistence = new IndexedDBPersistence()
+
+  const saveToCache = async (key, data) => {
+    cache.value.set(key, data)
+    await persistence.save(key, data)
+  }
+
+  const loadFromCache = async (key) => {
+    if (cache.value.has(key)) {
+      return cache.value.get(key)
+    }
+
+    const data = await persistence.load(key)
+    if (data) {
+      cache.value.set(key, data)
+    }
+    return data
+  }
+
+  return {
+    cache: readonly(cache),
+    saveToCache,
+    loadFromCache
+  }
+})
+```
+
+**4. 持久化最佳实践：**
+
+```javascript
+// 智能持久化策略
+export const createSmartPersistence = (options = {}) => {
+  const {
+    maxAge = 7 * 24 * 60 * 60 * 1000, // 7天
+    compress = false,
+    encrypt = false
+  } = options
+
+  return {
+    serialize: (data) => {
+      const payload = {
+        data,
+        timestamp: Date.now(),
+        version: '1.0'
+      }
+
+      let serialized = JSON.stringify(payload)
+
+      if (compress) {
+        // 使用压缩库
+        serialized = LZString.compress(serialized)
+      }
+
+      if (encrypt) {
+        // 使用加密库
+        serialized = CryptoJS.AES.encrypt(serialized, 'secret-key').toString()
+      }
+
+      return serialized
+    },
+
+    deserialize: (serialized) => {
+      try {
+        if (encrypt) {
+          const bytes = CryptoJS.AES.decrypt(serialized, 'secret-key')
+          serialized = bytes.toString(CryptoJS.enc.Utf8)
+        }
+
+        if (compress) {
+          serialized = LZString.decompress(serialized)
+        }
+
+        const payload = JSON.parse(serialized)
+
+        // 检查过期时间
+        if (Date.now() - payload.timestamp > maxAge) {
+          return null
+        }
+
+        return payload.data
+      } catch (error) {
+        console.error('Failed to deserialize:', error)
+        return null
+      }
+    }
+  }
+
+```
+
+**5. 基于watch的简单持久化：**
+
 ```javascript
 // store.js
 export const useUserStore = defineStore('user', {
@@ -1903,7 +2081,8 @@ export function setupPersistence() {
 }
 ```
 
-**4. 加密持久化方案：**
+**6. 加密持久化方案：**
+
 ```javascript
 // 安装：npm install crypto-js
 
@@ -2225,23 +2404,32 @@ export default {
 
 **使用场景对比：**
 
-| 监听方式 | 适用场景 | 优缺点 |
-|----------|----------|--------|
-| **watch单一属性** | 监听特定状态变化 | ✅ 精确触发<br>✅ 获取新旧值<br>❌ 需要手动设置getter |
-| **watchEffect** | 自动收集依赖 | ✅ 自动追踪依赖<br>✅ 代码简洁<br>❌ 无法获取旧值<br>❌ 可能触发多次 |
-| **$subscribe** | 全局监听状态变更 | ✅ 监听所有变化<br>✅ 访问修改详情<br>❌ 过滤成本高<br>❌ 可能过度触发 |
-| **$onAction** | 监听操作执行 | ✅ 拦截action调用<br>✅ 支持前后钩子<br>❌ 不监听直接状态变化 |
+| 监听方式          | 适用场景         | 优缺点                                                       |
+| ----------------- | ---------------- | ------------------------------------------------------------ |
+| **watch单一属性** | 监听特定状态变化 | ✅ 精确触发<br>✅ 获取新旧值<br>❌ 需要手动设置getter           |
+| **watchEffect**   | 自动收集依赖     | ✅ 自动追踪依赖<br>✅ 代码简洁<br>❌ 无法获取旧值<br>❌ 可能触发多次 |
+| **$subscribe**    | 全局监听状态变更 | ✅ 监听所有变化<br>✅ 访问修改详情<br>❌ 过滤成本高<br>❌ 可能过度触发 |
+| **$onAction**     | 监听操作执行     | ✅ 拦截action调用<br>✅ 支持前后钩子<br>❌ 不监听直接状态变化   |
 
 **记忆要点总结：**
+
 - **精确监听**: 使用watch + getter函数选择特定字段
 - **嵌套属性**: 使用链式路径 `() => store.user?.profile?.name`
 - **多字段监听**: 使用数组 `watch([getter1, getter2], callback)`
 - **自动依赖**: 使用watchEffect自动收集依赖
 - **高级API**: $subscribe监听状态变化，$onAction监听操作执行
-- **性能考虑**:
+- **性能考虑**: 
   - 移除不需要的监听器
   - 使用deep选项控制嵌套监听
   - 避免在监听回调中进行复杂计算
+
+**记忆要点总结：**
+
+- 基本方法：watch(() => store.field, callback)
+- 嵌套监听：watch(() => store.obj?.prop, callback)
+- 多字段监听：watch([getter1, getter2], callback)
+- Pinia专用：$subscribe监听mutations，$onAction监听actions
+- 清理机制：组件卸载时停止监听
 
 ---
 
@@ -2346,530 +2534,6 @@ export function acceptHMRUpdate(useStore, hot) {
   - 利用TypeScript获得更好的HMR支持
   - 配合Vue DevTools使用，实时预览状态
   - 在同一文件中定义相关store，减少跨文件依赖
-
----
-
-**3. 高级持久化策略：**
-```javascript
-// 分层存储策略
-export const useAppStore = defineStore('app', {
-  state: () => ({
-    // 敏感数据 - 不持久化
-    temporaryData: null,
-
-    // 会话数据 - sessionStorage
-    sessionData: {
-      currentTab: 'home',
-      scrollPosition: 0
-    },
-
-    // 用户偏好 - localStorage
-    userPreferences: {
-      theme: 'light',
-      language: 'en',
-      fontSize: 'medium'
-    },
-
-    // 缓存数据 - IndexedDB
-    cachedData: new Map()
-  }),
-
-  persist: [
-    {
-      key: 'app-session',
-      storage: sessionStorage,
-      paths: ['sessionData']
-    },
-    {
-      key: 'app-preferences',
-      storage: localStorage,
-      paths: ['userPreferences']
-    }
-  ]
-})
-
-// IndexedDB持久化
-class IndexedDBPersistence {
-  constructor(dbName = 'app-store', version = 1) {
-    this.dbName = dbName
-    this.version = version
-    this.db = null
-  }
-
-  async init() {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, this.version)
-
-      request.onerror = () => reject(request.error)
-      request.onsuccess = () => {
-        this.db = request.result
-        resolve(this.db)
-      }
-
-      request.onupgradeneeded = (event) => {
-        const db = event.target.result
-        if (!db.objectStoreNames.contains('store')) {
-          db.createObjectStore('store', { keyPath: 'key' })
-        }
-      }
-    })
-  }
-
-  async save(key, data) {
-    if (!this.db) await this.init()
-
-    const transaction = this.db.transaction(['store'], 'readwrite')
-    const store = transaction.objectStore('store')
-
-    return new Promise((resolve, reject) => {
-      const request = store.put({ key, data, timestamp: Date.now() })
-      request.onsuccess = () => resolve()
-      request.onerror = () => reject(request.error)
-    })
-  }
-
-  async load(key) {
-    if (!this.db) await this.init()
-
-    const transaction = this.db.transaction(['store'], 'readonly')
-    const store = transaction.objectStore('store')
-
-    return new Promise((resolve, reject) => {
-      const request = store.get(key)
-      request.onsuccess = () => {
-        const result = request.result
-        resolve(result ? result.data : null)
-      }
-      request.onerror = () => reject(request.error)
-    })
-  }
-}
-
-// 使用IndexedDB的store
-export const useCacheStore = defineStore('cache', () => {
-  const cache = ref(new Map())
-  const persistence = new IndexedDBPersistence()
-
-  const saveToCache = async (key, data) => {
-    cache.value.set(key, data)
-    await persistence.save(key, data)
-  }
-
-  const loadFromCache = async (key) => {
-    if (cache.value.has(key)) {
-      return cache.value.get(key)
-    }
-
-    const data = await persistence.load(key)
-    if (data) {
-      cache.value.set(key, data)
-    }
-    return data
-  }
-
-  return {
-    cache: readonly(cache),
-    saveToCache,
-    loadFromCache
-  }
-})
-```
-
-**4. 持久化最佳实践：**
-```javascript
-// 智能持久化策略
-export const createSmartPersistence = (options = {}) => {
-  const {
-    maxAge = 7 * 24 * 60 * 60 * 1000, // 7天
-    compress = false,
-    encrypt = false
-  } = options
-
-  return {
-    serialize: (data) => {
-      const payload = {
-        data,
-        timestamp: Date.now(),
-        version: '1.0'
-      }
-
-      let serialized = JSON.stringify(payload)
-
-      if (compress) {
-        // 使用压缩库
-        serialized = LZString.compress(serialized)
-      }
-
-      if (encrypt) {
-        // 使用加密库
-        serialized = CryptoJS.AES.encrypt(serialized, 'secret-key').toString()
-      }
-
-      return serialized
-    },
-
-    deserialize: (serialized) => {
-      try {
-        if (encrypt) {
-          const bytes = CryptoJS.AES.decrypt(serialized, 'secret-key')
-          serialized = bytes.toString(CryptoJS.enc.Utf8)
-        }
-
-        if (compress) {
-          serialized = LZString.decompress(serialized)
-        }
-
-        const payload = JSON.parse(serialized)
-
-        // 检查过期时间
-        if (Date.now() - payload.timestamp > maxAge) {
-          return null
-        }
-
-        return payload.data
-      } catch (error) {
-        console.error('Failed to deserialize:', error)
-        return null
-      }
-    }
-  }
-}
-```
-
-**记忆要点总结：**
-- 官方方案：pinia-plugin-persistedstate插件
-- 存储选择：localStorage（持久）、sessionStorage（会话）、IndexedDB（大数据）
-- 策略分层：敏感数据不存储、会话数据临时存储、偏好数据持久存储
-- 高级特性：压缩、加密、过期时间、版本控制
-
----
-
-**如何在组件中只监听 store 的某个字段变化？**
-
-使用 watch
-
-## 深度分析与补充
-
-**问题本质解读：** 这道题考察Pinia中精确监听特定字段的方法，面试官想了解你是否掌握细粒度的状态监听技巧。
-
-**实战应用举例：**
-```javascript
-// 在组件中监听store的特定字段
-export default {
-  setup() {
-    const userStore = useUserStore()
-    const { user, settings, notifications } = storeToRefs(userStore)
-
-    // 1. 监听单个字段
-    watch(
-      () => user.value?.name,
-      (newName, oldName) => {
-        console.log(`用户名从 ${oldName} 变更为 ${newName}`)
-        // 执行相关逻辑
-        updateUserProfile(newName)
-      }
-    )
-
-    // 2. 监听嵌套对象的特定属性
-    watch(
-      () => settings.value?.theme,
-      (newTheme) => {
-        document.documentElement.setAttribute('data-theme', newTheme)
-      },
-      { immediate: true }
-    )
-
-    // 3. 监听数组长度变化
-    watch(
-      () => notifications.value?.length,
-      (newLength, oldLength) => {
-        if (newLength > oldLength) {
-          showNotificationBadge()
-        }
-      }
-    )
-
-    // 4. 监听多个字段
-    watch(
-      [() => user.value?.id, () => settings.value?.language],
-      ([newUserId, newLang], [oldUserId, oldLang]) => {
-        if (newUserId !== oldUserId || newLang !== oldLang) {
-          reloadUserData()
-        }
-      }
-    )
-
-    // 5. 使用watchEffect自动收集依赖
-    watchEffect(() => {
-      if (user.value?.isOnline) {
-        startHeartbeat()
-      } else {
-        stopHeartbeat()
-      }
-    })
-
-    return {
-      user,
-      settings,
-      notifications
-    }
-  }
-}
-
-// 更高级的监听模式
-export function useStoreWatcher() {
-  const store = useUserStore()
-
-  // 创建选择性监听器
-  const createFieldWatcher = (selector, callback, options = {}) => {
-    return watch(
-      () => selector(store),
-      callback,
-      {
-        deep: false,
-        immediate: false,
-        ...options
-      }
-    )
-  }
-
-  // 监听用户状态变化
-  const watchUserStatus = (callback) => {
-    return createFieldWatcher(
-      (store) => store.user?.status,
-      callback,
-      { immediate: true }
-    )
-  }
-
-  // 监听权限变化
-  const watchPermissions = (callback) => {
-    return createFieldWatcher(
-      (store) => store.user?.permissions,
-      callback,
-      { deep: true }
-    )
-  }
-
-  // 监听特定设置项
-  const watchSetting = (settingKey, callback) => {
-    return createFieldWatcher(
-      (store) => store.settings?.[settingKey],
-      callback
-    )
-  }
-
-  return {
-    watchUserStatus,
-    watchPermissions,
-    watchSetting
-  }
-}
-
-// 在组件中使用
-const { watchUserStatus, watchSetting } = useStoreWatcher()
-
-// 监听用户在线状态
-const stopWatchingStatus = watchUserStatus((status) => {
-  if (status === 'offline') {
-    showOfflineMessage()
-  }
-})
-
-// 监听主题设置
-const stopWatchingTheme = watchSetting('theme', (theme) => {
-  applyTheme(theme)
-})
-
-// 组件卸载时停止监听
-onUnmounted(() => {
-  stopWatchingStatus()
-  stopWatchingTheme()
-})
-```
-
-**使用$subscribe方法：**
-```javascript
-// Pinia提供的专门监听方法
-export default {
-  setup() {
-    const store = useUserStore()
-
-    // 监听整个store的变化
-    const unsubscribe = store.$subscribe((mutation, state) => {
-      console.log('Store mutation:', mutation)
-      console.log('New state:', state)
-
-      // 只处理特定字段的变化
-      if (mutation.storeId === 'user' && mutation.type === 'direct') {
-        if (mutation.events.key === 'theme') {
-          handleThemeChange(mutation.events.newValue)
-        }
-      }
-    })
-
-    // 监听actions的调用
-    const unsubscribeAction = store.$onAction(({
-      name, // action名称
-      store, // store实例
-      args, // 传递给action的参数
-      after, // action成功后的钩子
-      onError // action失败后的钩子
-    }) => {
-      console.log(`Action ${name} called with args:`, args)
-
-      after((result) => {
-        console.log(`Action ${name} completed with result:`, result)
-      })
-
-      onError((error) => {
-        console.error(`Action ${name} failed:`, error)
-      })
-    })
-
-    onUnmounted(() => {
-      unsubscribe()
-      unsubscribeAction()
-    })
-
-    return { store }
-  }
-}
-```
-
-**使用场景对比：**
-
-| 监听方式 | 适用场景 | 优缺点 |
-|----------|----------|--------|
-| **watch单一属性** | 监听特定状态变化 | ✅ 精确触发<br>✅ 获取新旧值<br>❌ 需要手动设置getter |
-| **watchEffect** | 自动收集依赖 | ✅ 自动追踪依赖<br>✅ 代码简洁<br>❌ 无法获取旧值<br>❌ 可能触发多次 |
-| **$subscribe** | 全局监听状态变更 | ✅ 监听所有变化<br>✅ 访问修改详情<br>❌ 过滤成本高<br>❌ 可能过度触发 |
-| **$onAction** | 监听操作执行 | ✅ 拦截action调用<br>✅ 支持前后钩子<br>❌ 不监听直接状态变化 |
-
-**记忆要点总结：**
-- **精确监听**: 使用watch + getter函数选择特定字段
-- **嵌套属性**: 使用链式路径 `() => store.user?.profile?.name`
-- **多字段监听**: 使用数组 `watch([getter1, getter2], callback)`
-- **自动依赖**: 使用watchEffect自动收集依赖
-- **高级API**: $subscribe监听状态变化，$onAction监听操作执行
-- **性能考虑**: 
-  - 移除不需要的监听器
-  - 使用deep选项控制嵌套监听
-  - 避免在监听回调中进行复杂计算
-
-**记忆要点总结：**
-- 基本方法：watch(() => store.field, callback)
-- 嵌套监听：watch(() => store.obj?.prop, callback)
-- 多字段监听：watch([getter1, getter2], callback)
-- Pinia专用：$subscribe监听mutations，$onAction监听actions
-- 清理机制：组件卸载时停止监听
-
----
-
-**Pinia 的热重载（HMR）如何工作？**
-
-开发模式下 可以实现热重载 以来开发工具构建
-
-## 深度分析与补充
-
-**问题本质解读：** 这道题考察Pinia的开发体验特性，面试官想了解你是否掌握现代开发工具的集成。
-
-**技术错误纠正：**
-1. "以来"应为"依赖"
-2. 缺少具体的HMR工作机制说明
-
-**知识点系统梳理：**
-
-**HMR工作原理：**
-```javascript
-// Pinia自动支持HMR，无需额外配置
-export const useCounterStore = defineStore('counter', {
-  state: () => ({
-    count: 0
-  }),
-  actions: {
-    increment() {
-      this.count++
-    }
-  }
-})
-
-// 在Vite中，store文件修改时会自动热重载
-// 保持组件状态，只更新store逻辑
-
-// 手动配置HMR（通常不需要）
-if (import.meta.hot) {
-  import.meta.hot.accept(acceptHMRUpdate(useCounterStore, import.meta.hot))
-}
-```
-
-**HMR过程详解：**
-1. **检测变化**：开发服务器监测到store文件变更
-2. **保存状态**：记录当前store状态
-3. **替换定义**：用新的store定义替换旧定义
-4. **恢复状态**：将保存的状态应用到新store
-5. **通知组件**：触发UI更新，但不丢失应用状态
-
-**开发工具集成：**
-- 自动检测store变化
-- 保持应用状态不丢失
-- 实时更新store逻辑
-- 支持时间旅行调试
-
-**HMR实现代码分析：**
-```javascript
-// Pinia内部HMR实现（简化版）
-export function acceptHMRUpdate(useStore, hot) {
-  return (newModule) => {
-    // 获取旧store定义
-    const id = useStore.$id
-    
-    // 临时保存当前状态
-    const oldState = JSON.parse(JSON.stringify(pinia.state.value[id]))
-    
-    // 清理旧store
-    const oldStore = pinia._s.get(id)
-    if (oldStore) {
-      oldStore.$dispose()
-    }
-    
-    // 创建新store
-    const newStore = newModule.default || newModule
-    newStore(pinia, id)
-    
-    // 恢复状态
-    pinia.state.value[id] = oldState
-    
-    // 通知组件更新
-    triggerSubscriptions()
-  }
-}
-```
-
-**使用场景对比：**
-
-| 开发场景 | 不使用HMR | 使用HMR |
-|----------|-----------|---------|
-| **修改state初始值** | 页面刷新，状态重置 | 保留现有状态，无感更新 |
-| **修改getter逻辑** | 页面刷新，状态重置 | 立即看到新计算结果，状态保留 |
-| **修改action实现** | 页面刷新，状态重置 | 新action立即可用，状态保留 |
-| **添加新state属性** | 页面刷新，状态重置 | 新属性立即可用，已有状态保留 |
-| **TypeScript类型修改** | 页面刷新，状态重置 | 类型更新，状态保留 |
-
-**记忆要点总结：**
-- **自动支持**：Vite/Webpack自动启用HMR，无需配置
-- **状态保持**：修改store时应用状态不丢失
-- **热替换范围**：state定义、getters、actions都支持热替换
-- **触发时机**：保存文件时自动触发更新
-- **最佳实践**：
-  - 开发时使用单独的store文件
-  - 利用TypeScript获得更好的HMR支持
-  - 配合Vue DevTools使用，实时预览状态
-  - 在同一文件中定义相关store，减少跨文件依赖
-- 自动支持：Vite/Webpack自动启用HMR
-- 状态保持：修改store时保持应用状态
-- 开发体验：实时预览store变化
-- 调试友好：配合Vue DevTools使用
 
 ---
 
@@ -3027,7 +2691,7 @@ export function defineStore(id, options) {
 | 场景 | 解决方案 | 优缺点 |
 |------|----------|--------|
 | **简单组件通信** | Pinia单例store | ✅ 简单易用<br>✅ 自动响应式<br>✅ 无需手动传递props |
-| **深层组件通信** | Pinia单例store | ✅ 避免props drilling<br>✅ 集中状态管理<br>❌ 可能导致过度耦合 |
+| **深层组件通信** | Pinia单例store | ✅ 避免props drilling<br />✅ 集中状态管理<br />❌ 可能导致过度耦合 |
 | **跨页面通信** | Pinia单例store | ✅ 页面间状态保持<br>✅ 自动同步<br>❌ 需要注意内存管理 |
 | **动态创建的组件** | Pinia单例store | ✅ 相同ID自动共享<br>✅ 无需手动注入 |
 
@@ -3356,9 +3020,114 @@ export function showSuccess(message) {
     duration: 3000
   })
 }
+
+// 4. 在服务类中使用
+// services/UserService.js
+class UserService {
+  constructor() {
+    // 不能在构造函数中直接使用store
+    this.store = null
+  }
+
+  init() {
+    // 在初始化方法中使用
+    this.store = useUserStore()
+  }
+
+  async getCurrentUser() {
+    if (!this.store) {
+      throw new Error('Service not initialized')
+    }
+
+    return this.store.currentUser
+  }
+}
+
+// 5. 正确的初始化顺序
+// main.js
+import { createApp } from 'vue'
+import { createPinia } from 'pinia'
+import App from './App.vue'
+import router from './router'
+
+const app = createApp(App)
+const pinia = createPinia()
+
+// 1. 先注册pinia
+app.use(pinia)
+
+// 2. 再注册router（这样router守卫中就能使用store）
+app.use(router)
+
+// 3. 初始化服务
+const userService = new UserService()
+userService.init()
+
+app.mount('#app')
+
+// 6. 在非Vue上下文中使用的解决方案
+// utils/storeHelper.js
+let pinia = null
+
+export function setPinia(piniaInstance) {
+  pinia = piniaInstance
+}
+
+export function useStoreOutsideSetup(storeDefinition) {
+  if (!pinia) {
+    throw new Error('Pinia not initialized')
+  }
+
+  return storeDefinition(pinia)
+}
+
+// main.js中设置
+const pinia = createPinia()
+setPinia(pinia)
+app.use(pinia)
+
+// 在普通JS文件中使用
+import { useStoreOutsideSetup } from '@/utils/storeHelper'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useStoreOutsideSetup(useAuthStore)
+```
+
+**使用限制和解决方案：**
+
+```javascript
+// 错误用法 - 在模块顶层直接使用
+// ❌ 这样会报错，因为pinia还未初始化
+const store = useUserStore()
+
+export function someFunction() {
+  return store.user
+}
+
+// 正确用法 - 在函数内部使用
+// ✅ 在函数调用时才获取store
+export function someFunction() {
+  const store = useUserStore()
+  return store.user
+}
+
+// 或者使用延迟初始化
+let store = null
+
+export function initStore() {
+  store = useUserStore()
+}
+
+export function someFunction() {
+  if (!store) {
+    throw new Error('Store not initialized')
+  }
+  return store.user
+}
 ```
 
 **2. 非组件环境使用Pinia的挑战：**
+
 - Pinia需要访问Vue应用实例
 - 在组件外部没有自动的依赖注入上下文
 - 可能在应用挂载前就需要访问store
@@ -3528,128 +3297,18 @@ export function getAuthStore(): AuthStore {
   - 实现获取store的工具函数
   - 使用TypeScript增强类型安全
 
-```javascript
-// 4. 在服务类中使用
-// services/UserService.js
-class UserService {
-  constructor() {
-    // 不能在构造函数中直接使用store
-    this.store = null
-  }
-
-  init() {
-    // 在初始化方法中使用
-    this.store = useUserStore()
-  }
-
-  async getCurrentUser() {
-    if (!this.store) {
-      throw new Error('Service not initialized')
-    }
-
-    return this.store.currentUser
-  }
-}
-
-// 5. 正确的初始化顺序
-// main.js
-import { createApp } from 'vue'
-import { createPinia } from 'pinia'
-import App from './App.vue'
-import router from './router'
-
-const app = createApp(App)
-const pinia = createPinia()
-
-// 1. 先注册pinia
-app.use(pinia)
-
-// 2. 再注册router（这样router守卫中就能使用store）
-app.use(router)
-
-// 3. 初始化服务
-const userService = new UserService()
-userService.init()
-
-app.mount('#app')
-
-// 6. 在非Vue上下文中使用的解决方案
-// utils/storeHelper.js
-let pinia = null
-
-export function setPinia(piniaInstance) {
-  pinia = piniaInstance
-}
-
-export function useStoreOutsideSetup(storeDefinition) {
-  if (!pinia) {
-    throw new Error('Pinia not initialized')
-  }
-
-  return storeDefinition(pinia)
-}
-
-// main.js中设置
-const pinia = createPinia()
-setPinia(pinia)
-app.use(pinia)
-
-// 在普通JS文件中使用
-import { useStoreOutsideSetup } from '@/utils/storeHelper'
-import { useAuthStore } from '@/stores/auth'
-
-const authStore = useStoreOutsideSetup(useAuthStore)
-```
-
-**使用限制和解决方案：**
-```javascript
-// 错误用法 - 在模块顶层直接使用
-// ❌ 这样会报错，因为pinia还未初始化
-const store = useUserStore()
-
-export function someFunction() {
-  return store.user
-}
-
-// 正确用法 - 在函数内部使用
-// ✅ 在函数调用时才获取store
-export function someFunction() {
-  const store = useUserStore()
-  return store.user
-}
-
-// 或者使用延迟初始化
-let store = null
-
-export function initStore() {
-  store = useUserStore()
-}
-
-export function someFunction() {
-  if (!store) {
-    throw new Error('Store not initialized')
-  }
-  return store.user
-}
-```
-
-**记忆要点总结：**
-- 时机限制：必须在app.use(pinia)之后使用
-- 函数内使用：在函数调用时获取store，不要在模块顶层
-- 初始化顺序：pinia → router → 其他服务
-- 解决方案：延迟初始化、依赖注入、工具函数封装
-
 ---
 
 **如何在 Pinia 中实现依赖注入（store 之间互用）？**
 
-可以通过$subscribe订阅其他store 变化 参数（mutation,state）
+~~可以通过$subscribe订阅其他store 变化 参数（mutation,state）~~
 
 ## 深度分析与补充
 
 **问题本质解读：** 这道题考察Pinia中store间的依赖关系处理，面试官想了解你是否掌握复杂状态管理的设计模式。
 
 **技术错误纠正：**
+
 1. $subscribe主要用于监听变化，不是依赖注入的主要方式
 2. 缺少store间直接调用的说明
 
@@ -3814,8 +3473,8 @@ export const useNotificationStore = defineStore('notification', {
 
 **Pinia 的 `mapState` / `mapActions` 如何在 Options API 中使用？**
 
-mapState和mapActions 适用于组合式api的结构
-mapState 将getters 映射为compute
+mapState和mapActions 适用于 Options API的结构
+mapState 将getters 映射为computed
 mapActions 将actions映射为methods
 
 ## 深度分析与补充
