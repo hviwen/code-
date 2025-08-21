@@ -1,6 +1,8 @@
 // 白板题：手写一个最简版的 watchEffect（只需展示依赖收集思想、weakmap -> set）。
 // 要点：展示 effect 注册、依赖收集、触发流程。
 
+const reactiveMap = new WeakMap()
+const readonlyMap = new WeakMap()
 const targetMap = new WeakMap()
 let activeEffect = null
 
@@ -42,19 +44,68 @@ const trigger = (target, key) => {
   })
 }
 
+function hasOwn(target, p) {
+  return Object.prototype.hasOwnProperty.call(target, p)
+}
+
+const ITERATE_KEY = Symbol('iterate')
+
 function reactive(target) {
-  return new Proxy(target, {
+  if (typeof target !== 'object' || target === null) {
+    return target
+  }
+
+  if (reactiveMap.has(target)) {
+    return reactiveMap.get(target)
+  }
+
+  const proxy = new Proxy(target, {
     get(target, key, receiver) {
+      if (key === '__v_isReactive') return true
+      if (key === '__v_raw') return target
+
       const result = Reflect.get(target, key, receiver)
       track(target, key)
+
+      if (typeof result === 'object' && result !== null) {
+        return reactive(result)
+      }
+
       return result
     },
     set(target, key, value, receiver) {
+      const oldValue = target[key]
       const result = Reflect.set(target, key, value, receiver)
-      trigger(target, key)
+
+      if (oldValue !== value) {
+        trigger(target, key, value, oldValue)
+      }
+
       return result
+    },
+
+    has(target, key) {
+      track(target, key)
+      return Reflect.has(target, key)
+    },
+
+    deleteProperty(target: *, p: string | symbol): boolean {
+      const hadKey = hasOwn(target, p)
+      const result = Reflect.deleteProperty(target, p)
+      if (hadKey) {
+        trigger(target, p, undefined, target[p])
+      }
+      return result
+    },
+
+    ownKeys(target: *): ArrayLike<string | symbol> {
+      track(target, Array.isArray(target) ? 'length' : ITERATE_KEY)
+      return Reflect.ownKeys(target)
     }
   })
+
+  reactiveMap.set(target, proxy)
+  return proxy
 }
 
 function effect(fn) {
@@ -82,10 +133,18 @@ const watchEffect = (fn) => {
   effect()
 }
 
-const obj = {foo: 1}
+const obj = {
+  foo: 1,
+  user: {
+    name: 'Jone',
+    hobbies: ['reading', 'coding']
+  }
+}
 
 watchEffect(() => {
   console.log(obj.foo)
 })
+
+const state = reactive(obj)
 
 obj.foo = 3
