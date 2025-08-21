@@ -2,6 +2,7 @@
 // 要点：展示 effect 注册、依赖收集、触发流程。
 
 const targetMap = new WeakMap()
+let activeEffect = null
 
 /**
  * 依赖收集
@@ -9,6 +10,7 @@ const targetMap = new WeakMap()
  * @param key
  */
 const track = (target, key) => {
+  if (!activeEffect) return
   let depsMap = targetMap.get(target)
   if (!depsMap) {
     depsMap = new Map()
@@ -21,6 +23,7 @@ const track = (target, key) => {
   }
   dep.add(activeEffect)
 
+  activeEffect.deps.push(dep)
   console.log('track', target, key, dep)
 }
 
@@ -32,10 +35,39 @@ const trigger = (target, key) => {
   if (!depsMap) return
   const dep = depsMap.get(key)
   if (!dep) return
-  dep.forEach(effect => effect())
+  dep.forEach(effect => {
+    if (effect !== activeEffect) {
+      effect()
+    }
+  })
 }
 
-let activeEffect = null
+function reactive(target) {
+  return new Proxy(target, {
+    get(target, key, receiver) {
+      const result = Reflect.get(target, key, receiver)
+      track(target, key)
+      return result
+    },
+    set(target, key, value, receiver) {
+      const result = Reflect.set(target, key, value, receiver)
+      trigger(target, key)
+      return result
+    }
+  })
+}
+
+function effect(fn) {
+  const effectFn = () => {
+    activeEffect = effectFn
+    effectFn.deps = []
+    fn()
+    activeEffect = null
+  }
+  effectFn()
+  return effectFn
+}
+
 
 /**
  * 注册副作用
@@ -50,7 +82,7 @@ const watchEffect = (fn) => {
   effect()
 }
 
-const obj = { foo: 1 }
+const obj = {foo: 1}
 
 watchEffect(() => {
   console.log(obj.foo)
