@@ -161,9 +161,9 @@ pinia.use(createLoggerPlugin({ level: 'info' }))
   - 为插件添加的属性提供清理方法（如 `$dispose`）
   - 支持配置选项的插件应使用工厂函数模式
   - 在 SSR 环境中避免使用仅限浏览器的 API
-| **状态重置** | 扩展 `$reset` 或独立方法 | ✅ 方便测试<br>✅ 简化代码<br>❌ 可能误用 |
-| **请求缓存** | 拦截 action 并缓存结果 | ✅ 提高性能<br>✅ 减少请求<br>❌ 缓存失效控制复杂 |
-| **开发工具** | 向 DevTools 添加自定义面板 | ✅ 调试便利<br>❌ 仅开发环境有效 |
+  | **状态重置** | 扩展 `$reset` 或独立方法 | ✅ 方便测试<br>✅ 简化代码<br>❌ 可能误用 |
+  | **请求缓存** | 拦截 action 并缓存结果 | ✅ 提高性能<br>✅ 减少请求<br>❌ 缓存失效控制复杂 |
+  | **开发工具** | 向 DevTools 添加自定义面板 | ✅ 调试便利<br>❌ 仅开发环境有效 |
 
 **插件实现示例：**
 
@@ -277,6 +277,8 @@ function createCompositePlugin() {
   - SSR安全：避免直接使用仅浏览器API
 
 ----
+
+
 ## 原题：如何为 Pinia 实现持久化插件（大概思路）？
 
 ### 原始答案（保留，不作修改）
@@ -527,186 +529,9 @@ pinia.use(createPersistPlugin({
   - 选择性持久化减少数据量
   - 考虑异步存储(IndexedDB)
 
-// 持久化插件创建函数
-export function createPersistPlugin(globalOptions: PersistOptions = {}) {
-  return ({ store, options }: PiniaPluginContext) => {
-    // 合并全局和store级别配置
-    const {
-      prefix = 'pinia-',
-      storage = localStorage,
-      paths = null,
-      serializer = {
-        serialize: JSON.stringify,
-        deserialize: JSON.parse
-      },
-      version = 1,
-      migrate,
-      debounceMs = 100,
-      enabledInSSR = false
-    } = {
-      ...globalOptions,
-      ...(options.persist || {})
-    }
-    
-    // 跳过SSR环境的处理
-    if (typeof window === 'undefined' && !enabledInSSR) {
-      return
-    }
-    
-    // 构建存储键
-    const storageKey = `${prefix}${store.$id}`
-    
-    // 加载并恢复状态
-    const restoreState = () => {
-      try {
-        const storedValue = storage.getItem(storageKey)
-        
-        if (storedValue) {
-          const data = serializer.deserialize(storedValue)
-          
-          // 版本迁移处理
-          if (data._version && data._version !== version && migrate) {
-            const migratedState = migrate(data, data._version)
-            store.$patch(migratedState)
-            return
-          }
-          
-          // 应用存储状态
-          if (paths) {
-            const partialState = {}
-            paths.forEach(path => {
-              if (data[path] !== undefined) {
-                partialState[path] = data[path]
-              }
-            })
-            store.$patch(partialState)
-          } else {
-            store.$patch(data)
-          }
-        }
-      } catch (e) {
-        console.error(`[Pinia Persist] Error restoring state for "${store.$id}":`, e)
-        // 恢复失败时清除可能损坏的数据
-        storage.removeItem(storageKey)
-      }
-    }
-    
-    // 初始恢复状态
-    restoreState()
-    
-    // 创建持久化函数
-    const persistState = () => {
-      try {
-        const state = JSON.parse(JSON.stringify(store.$state))
-        
-        // 只持久化指定路径
-        let toStore
-        if (paths) {
-          toStore = {}
-          paths.forEach(path => {
-            toStore[path] = state[path]
-          })
-        } else {
-          toStore = state
-        }
-        
-        // 添加版本信息
-        toStore._version = version
-        
-        // 写入存储
-        storage.setItem(storageKey, serializer.serialize(toStore))
-      } catch (e) {
-        console.error(`[Pinia Persist] Error persisting state for "${store.$id}":`, e)
-      }
-    }
-    
-    // 使用防抖优化性能
-    const debouncedPersist = debounce(persistState, debounceMs)
-    
-    // 订阅状态变化
-    const unsubscribe = store.$subscribe(() => {
-      debouncedPersist()
-    })
-    
-    // 添加实用方法到store
-    store.$persist = persistState
-    store.$persistClear = () => storage.removeItem(storageKey)
-    store.$persistDispose = unsubscribe
-  }
-}
-
-// 使用示例
-// store定义
-const useUserStore = defineStore('user', {
-  state: () => ({
-    user: null,
-    token: null,
-    preferences: {}
-  }),
-  persist: {
-    paths: ['token', 'preferences'],
-    storage: sessionStorage
-  }
-})
-
-// 插件应用
-const pinia = createPinia()
-pinia.use(createPersistPlugin({
-  prefix: 'myapp-',
-  version: 2,
-  migrate: (state, version) => {
-    if (version === 1) {
-      // 迁移v1数据到v2格式
-      return {
-        ...state,
-        preferences: state.prefs || {}
-      }
-    }
-    return state
-  }
-}))
-```
-
-**使用场景对比：**
-
-| 存储方式 | 适用场景 | 优缺点 |
-|---------|---------|-------|
-| **localStorage** | 长期保存用户偏好、主题、设置 | ✅ 持久性强<br>✅ 跨会话<br>❌ 容量有限(~5MB)<br>❌ 同步API可能阻塞 |
-| **sessionStorage** | 临时会话数据、表单草稿 | ✅ 会话隔离<br>✅ 浏览器关闭清除<br>❌ 同窗口限制 |
-| **IndexedDB** | 大量数据、复杂结构、离线应用 | ✅ 存储容量大<br>✅ 异步API<br>✅ 支持索引查询<br>❌ API复杂 |
-| **Cookie** | 认证令牌、需要与服务器共享的状态 | ✅ 可设置过期时间<br>✅ 自动随请求发送<br>❌ 容量极小(~4KB)<br>❌ 增加请求负担 |
-| **自定义存储** | 加密数据、同步到远程、WebSQL兼容 | ✅ 高度定制<br>✅ 支持加密<br>❌ 实现复杂 |
-
-**优化策略对比：**
-
-| 优化策略 | 实现方式 | 适用场景 |
-|---------|---------|---------|
-| **防抖写入** | 延迟写入，合并多次变更 | 频繁小量变更的数据 |
-| **部分持久化** | 仅持久化指定字段 | 大型store，只需保存少量状态 |
-| **压缩存储** | 使用LZ-string等压缩数据 | 接近存储限制的大数据 |
-| **序列化定制** | 自定义序列化/反序列化逻辑 | 包含特殊数据类型(Date,Map,Set) |
-| **版本控制** | 添加版本号和迁移逻辑 | 应用迭代中数据结构变化 |
-
-**记忆要点总结：**
-- **核心流程**：
-  - 插件初始化：从存储加载→还原到store
-  - 状态监听：$subscribe监控变化
-  - 写入优化：防抖、选择性持久化
-- **关键配置**：
-  - 存储介质：localStorage/sessionStorage/自定义
-  - 持久化路径：选择需要持久化的字段
-  - 序列化处理：处理特殊类型数据
-  - 版本迁移：应对数据结构变化
-- **安全考虑**：
-  - 敏感数据加密或不持久化
-  - 注意XSS风险
-  - 考虑存储配额限制
-- **性能优化**：
-  - 使用防抖减少写入次数
-  - 选择性持久化减少数据量
-  - 考虑异步存储(IndexedDB)
-
 ----
+
+
 ## 原题：如何在服务端渲染中同步 Pinia 状态（hydrate）？
 
 ### 原始答案（保留，不作修改）
@@ -893,11 +718,13 @@ await useAsyncData('user', () => userStore.fetchUser())
   - 考虑使用 `serverOnly` 标记仅服务端的状态
 
 ----
+
+
 ## 原题：Pinia 中如何实现模块之间的依赖注入且避免循环依赖？
 
 ### 原始答案（保留，不作修改）
 
-将复用逻辑抽离封装到组合函数中，每一个store id只维护当前组件的状态数据。
+将复用逻辑抽离封装到组合函数中~~，每一个store id只维护当前组件的状态数据。~~
 
 如果需要监听其他store的数据变化，可以使用订阅（$subsurice)的方式来获取其他store中数据的变化
 
@@ -907,6 +734,7 @@ await useAsyncData('user', () => userStore.fetchUser())
 **问题本质解读：** 考察 store 间依赖管理和循环依赖的预防策略（抽离、延迟、订阅）。
 
 **技术错误纠正：**
+
 - 拼写错误 `$subsurice` → `$subscribe`。
 - 不应该建议为每个组件创建独立 store；应按业务域设计 store。
 
@@ -1088,6 +916,8 @@ function someFunction() {
   - 复杂交互考虑引入专门的协调器 store
 
 ----
+
+
 ## 原题：如何对 Pinia store 做权限/隔离（多租户或不同用户）？
 
 ### 原始答案（保留，不作修改）
@@ -1095,29 +925,6 @@ function someFunction() {
 根据身份建立多个不同的store，然后将身份切换的逻辑抽离成公共部分，并监听身份状态的变化
 
 ## 深度分析与补充
-
-**问题本质解读：** 考察多租户/权限隔离思路与实现（store 分离、上下文注入、后端配合）。
-
-**技术错误纠正：**
-- “根据身份建立多个不同的store”需要补充实现细节（tenantId 注入、命名规范、后端隔离）。
-
-**知识点系统梳理：**
-- 实现方式：tenantId 注入 plugin、不同 store id、后端过滤。
-- 权限控制：在 action 前进行统一校验（插件或装饰器）。
-
-**实战应用举例：**
-```ts
-export function tenantPlugin(getTenantId: () => string | null) {
-  return ({ store }: any) => {
-    (store as any).$tenantId = getTenantId()
-  }
-}
-```
-
-**记忆要点总结：**
-- 客户端保留 tenantId，上后端做数据隔离；用 plugin 统一注入与校验。
-
-## 深度分析与补充（增强版）
 
 **问题本质解读：** 这道题考察企业级应用中的多租户架构和权限隔离设计，面试官想了解你是否掌握大型应用的数据安全和访问控制策略。
 
@@ -1295,11 +1102,13 @@ export const useUserStore = defineStore('user', () => {
 - **最佳实践**：永远不要仅依赖前端权限控制
 
 ----
+
+
 ## 原题：如何对 Pinia 的 actions 做事务化（批量回滚）？
 
 ### 原始答案（保留，不作修改）
 
-可以实现序列化缓存 根据cacheKey，回滚到相应的节点
+~~可以实现序列化缓存 根据cacheKey，回滚到相应的节点~~
 
 ## 深度分析与补充
 
@@ -1639,234 +1448,21 @@ export async function complexUserOperation(operations: any[]) {
 - **性能考虑**：避免过度使用，合理选择事务粒度
 - **最佳实践**：根据业务复杂度选择合适的事务模式
 
-**实战应用举例：**
-```ts
-// 1. 基于快照的简单事务实现
-function createTransaction(store) {
-  const snapshots: any[] = []
-  
-  return {
-    // 创建快照
-    snapshot() {
-      snapshots.push(JSON.parse(JSON.stringify(store.$state)))
-    },
-    // 回滚到最近的快照
-    rollback() {
-      const snapshot = snapshots.pop()
-      if (snapshot) {
-        store.$patch(snapshot)
-      }
-    },
-    // 提交（清除快照）
-    commit() {
-      snapshots.length = 0
-    }
-  }
-}
-
-// 使用示例
-const userStore = useUserStore()
-const transaction = createTransaction(userStore)
-
-try {
-  transaction.snapshot()
-  await userStore.updateProfile(data)
-  transaction.commit()
-} catch (e) {
-  transaction.rollback()
-  throw e
-}
-
-// 2. 命令模式实现（支持撤销/重做）
-interface Command {
-  execute(): Promise<void>
-  undo(): Promise<void>
-}
-
-class UpdateProfileCommand implements Command {
-  private oldData: any
-  
-  constructor(
-    private store: any,
-    private newData: any
-  ) {
-    this.oldData = { ...store.$state }
-  }
-  
-  async execute() {
-    await this.store.updateProfile(this.newData)
-  }
-  
-  async undo() {
-    await this.store.updateProfile(this.oldData)
-  }
-}
-
-// 命令管理器
-class CommandManager {
-  private undoStack: Command[] = []
-  private redoStack: Command[] = []
-  
-  async execute(command: Command) {
-    await command.execute()
-    this.undoStack.push(command)
-    this.redoStack = [] // 清除重做栈
-  }
-  
-  async undo() {
-    const command = this.undoStack.pop()
-    if (command) {
-      await command.undo()
-      this.redoStack.push(command)
-    }
-  }
-  
-  async redo() {
-    const command = this.redoStack.pop()
-    if (command) {
-      await command.execute()
-      this.undoStack.push(command)
-    }
-  }
-}
-
-// 3. 多 Store 事务管理器
-class MultiStoreTransaction {
-  private snapshots = new Map<string, any>()
-  private stores: any[] = []
-  
-  constructor(...stores: any[]) {
-    this.stores = stores
-  }
-  
-  begin() {
-    this.stores.forEach(store => {
-      this.snapshots.set(store.$id, JSON.parse(JSON.stringify(store.$state)))
-    })
-  }
-  
-  async commit() {
-    this.snapshots.clear()
-  }
-  
-  async rollback() {
-    this.stores.forEach(store => {
-      const snapshot = this.snapshots.get(store.$id)
-      if (snapshot) {
-        store.$patch(snapshot)
-      }
-    })
-    this.snapshots.clear()
-  }
-  
-  // 自动事务包装器
-  async transactional<T>(fn: () => Promise<T>): Promise<T> {
-    this.begin()
-    try {
-      const result = await fn()
-      await this.commit()
-      return result
-    } catch (error) {
-      await this.rollback()
-      throw error
-    }
-  }
-}
-
-// 使用示例
-const userStore = useUserStore()
-const cartStore = useCartStore()
-const transaction = new MultiStoreTransaction(userStore, cartStore)
-
-await transaction.transactional(async () => {
-  await userStore.checkout()
-  await cartStore.clear()
-})
-
-// 4. 插件方式实现事务支持
-function createTransactionPlugin() {
-  return ({ store }: PiniaPluginContext) => {
-    // 添加事务相关方法到 store
-    store.$transaction = async (fn: () => Promise<any>) => {
-      const snapshot = JSON.parse(JSON.stringify(store.$state))
-      try {
-        const result = await fn()
-        return result
-      } catch (error) {
-        store.$patch(snapshot)
-        throw error
-      }
-    }
-    
-    // 添加撤销/重做支持
-    const undoStack: any[] = []
-    const redoStack: any[] = []
-    
-    store.$subscribe((mutation, state) => {
-      undoStack.push(JSON.parse(JSON.stringify(state)))
-      redoStack.length = 0 // 清除重做栈
-    })
-    
-    store.$undo = () => {
-      const previous = undoStack.pop()
-      if (previous) {
-        redoStack.push(JSON.parse(JSON.stringify(store.$state)))
-        store.$patch(previous)
-      }
-    }
-    
-    store.$redo = () => {
-      const next = redoStack.pop()
-      if (next) {
-        undoStack.push(JSON.parse(JSON.stringify(store.$state)))
-        store.$patch(next)
-      }
-    }
-  }
-}
-```
-
-**事务实现策略对比：**
-
-| 策略 | 优点 | 缺点 | 适用场景 |
-|-----|-----|-----|---------|
-| **快照模式** | 实现简单<br>状态完整保存 | 内存占用大<br>序列化开销 | 简单操作<br>单一store |
-| **命令模式** | 支持撤销/重做<br>内存效率高 | 实现复杂<br>需要维护命令对 | 复杂操作<br>需要操作历史 |
-| **多Store事务** | 支持跨store操作<br>原子性保证 | 协调复杂<br>性能开销大 | 跨模块操作<br>数据一致性要求高 |
-| **插件方式** | 统一管理<br>易于使用 | 通用性受限<br>配置灵活性低 | 项目级集成<br>统一事务管理 |
-
-**记忆要点总结：**
-- **事务基本概念**：
-  - 原子性：要么全部成功，要么全部失败
-  - 一致性：事务前后数据状态一致
-  - 隔离性：事务执行不受其他事务影响
-  - 持久性：事务完成后的修改是永久的
-
-- **实现策略选择**：
-  - **简单场景**：使用快照模式，直接保存和恢复状态
-  - **复杂操作**：使用命令模式，支持撤销/重做
-  - **跨模块操作**：使用多Store事务管理器
-  - **项目级需求**：使用插件方式统一管理
-
-- **最佳实践**：
-  - 根据业务复杂度选择合适的实现策略
-  - 考虑内存占用和性能影响
-  - 正确处理异步操作和错误情况
-  - 提供清晰的回滚和恢复机制
-  - 考虑并发操作的处理
-
 ----
+
+
 ## 原题：在大型项目中，如何组织 Pinia 的 store 文件结构？
 
 ### 原始答案（保留，不作修改）
 
-每个单独的组件使用一个单独的store，公共部分抽离出来，index中id化
+~~每个单独的组件使用一个单独的store，公共部分抽离出来，index中id化~~
 
 ## 深度分析与补充
 
 **问题本质解读：** 这道题考察大型项目的架构设计和代码组织能力，面试官想了解你是否掌握可维护、可扩展的状态管理架构。
 
 **技术错误纠正：**
+
 - 原答案"每个单独的组件使用一个单独的store"是错误的，这会导致store过度碎片化
 - 应该按业务领域(Domain)或功能模块(Feature)划分，而不是按组件划分
 - "index中id化"表述不清，应该是统一的导出和命名规范
@@ -1874,6 +1470,7 @@ function createTransactionPlugin() {
 **知识点系统梳理：**
 
 **Store组织原则：**
+
 - **按业务领域划分**：用户管理、订单管理、商品管理等
 - **按功能模块划分**：认证、权限、通知、设置等
 - **按数据生命周期划分**：全局状态、页面状态、组件状态
@@ -2157,6 +1754,8 @@ export const useLayoutStore = defineStore('layout', () => {
 - **最佳实践**：小状态留组件，大状态用store，共享状态抽取
 
 ----
+
+
 ## 原题：如何为 Pinia store 编写单元测试？（思路）
 
 ### 原始答案（保留，不作修改）
@@ -2553,15 +2152,31 @@ describe('性能测试', () => {
 - **性能考虑**：对大数据量操作进行性能测试
 
 ----
+
+
 ## 原题：如何在 Pinia 中监听 state 变化并触发副作用（subscribe）？
 
 ### 原始答案（保留，不作修改）
 
 ```javascript
-store.$subscribe((mutation，state)=>{
+const unsubscribe = store.$subscribe((mutation, state)=>{
+})
 
-  // mutation包含：type paylod storeId
-  // 接收到这些变化后可以更新state
+const unsubscribeAction = store.$onAction(({name,store,args,after,onError})=>{
+  
+})
+
+const onUnWatch = watch(()=>store.xx,(newValue,oldValue)=>{},{immediate:true})
+      
+const onUnWatchEffect = watchEffect(()=>{
+  console.log(store.xx)
+})
+      
+onUnmounted(() => {
+  unsubscribe(),
+  unsubscribeAction(),
+  onUnWatch(),
+  onUnWatchEffect()
 })
 ```
 
@@ -2932,6 +2547,7 @@ export function useOptimizedSubscription() {
 - **自动化任务**：使用watchEffect自动执行依赖状态的任务
 
 **记忆要点总结：**
+
 - **$subscribe**：监听整个store状态变化，适合全局副作用
 - **$onAction**：监听actions执行，适合日志和监控
 - **watch**：精确监听特定状态，适合组件响应
@@ -2940,6 +2556,8 @@ export function useOptimizedSubscription() {
 - **最佳实践**：根据需求选择合适的监听方式，避免过度监听
 
 ----
+
+
 ## 原题：Pinia 如何支持按需加载 store（动态注册）？
 
 ### 原始答案（保留，不作修改）
