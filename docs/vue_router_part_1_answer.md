@@ -1,20 +1,20 @@
 
 
-**如何创建 Vue Router 实例（基本示例）？**
+### **如何创建 Vue Router 实例（基本示例）？**
 
 使用vue-router中的createRouter 创建
 
 ```javascript
-import HomeView form './HomeView';
-import AboutView form './AboutView'
+import HomeView from './HomeView';
+import AboutView from './AboutView'
 
-const routes= [{
-  path:'/',name:'home',component:HomeView,
-  path:'/about',name:'about',component:AboutView
-}]
+const routes= [
+  {path:'/',name:'home',component:HomeView},
+  {path:'/about',name:'about',component:AboutView}
+]
 
 const router = createRouter({
-  history: createWebHistory,
+  history: createWebHistory(),
   routes
 })
 ```
@@ -131,11 +131,11 @@ app.mount('#app')
 
 
 
-**`router-link` 与 `router.push` 的区别？**
+### **`router-link` 与 `router.push` 的区别？**
 
-Router-link: 直接在组件上定义路由跳转，可以预加载下一页的内容。如果当前的路由栈中存在则不会重复创建
+~~Router-link: 直接在组件上定义路由跳转，可以预加载下一页的内容。如果当前的路由栈中存在则不会重复创建~~
 
-router.push：将一下页的内容推入到当前的路由栈中，不论路由栈中是否已经存在
+~~router.push：将一下页的内容推入到当前的路由栈中，不论路由栈中是否已经存在~~
 
 ## 深度分析与补充
 
@@ -278,15 +278,13 @@ const goToSpecificHistory = () => router.go(-3)
 
 
 
-**什么是动态路由？如何定义路由参数？**
+### **什么是动态路由？如何定义路由参数？**
 
 动态路由就是相同的页面，只是由于参数不同需要在定义的路径后面加：来增加参数.
 
 通过冒号：来提供不同的参数；也可以是自定义正则匹配
 
-也可以通过router.addRoute() 添加新的路由地址.通过替换路由的方式实现导航。
-
-router.removeRoute()
+~~也可以通过router.addRoute() 添加新的路由地址.通过替换路由的方式实现导航。~~
 
 ## 深度分析与补充
 
@@ -299,6 +297,7 @@ router.removeRoute()
 **知识点系统梳理：**
 
 **动态路由概念：**
+
 - 使用参数化的路径模式匹配多个路由
 - 同一个组件可以处理不同的参数值
 - 支持路径参数、查询参数、可选参数等
@@ -481,7 +480,7 @@ const allRoutes = router.getRoutes()
 
 
 
-**如何将路由参数作为组件 props 传入？**
+### **如何将路由参数作为组件 props 传入？**
 
 当配置路由时将属性props设置为true，可以在组件中将传入内容视为参数，通过$route获取。
 
