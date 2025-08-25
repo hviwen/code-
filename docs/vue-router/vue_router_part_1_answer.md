@@ -299,7 +299,7 @@ const goToSpecificHistory = () => router.go(-3)
 **问题本质解读：** 这道题考察动态路由的概念和参数传递机制，面试官想了解你是否掌握路由参数的定义、获取和动态路由管理。
 
 **技术错误纠正：**
-- 动态路由不仅仅是"相同页面"，而是**路由模式的复用**
+- 动态路由不仅仅是"相同页面"，而是路由模式的复用
 - router.addRoute() 和 router.removeRoute() 是动态路由管理，与路由参数是不同概念
 
 **知识点系统梳理：**
@@ -2091,7 +2091,6 @@ router.beforeEach((to, from) => {
 **知识点系统梳理：**
 
 **meta字段的作用：**
-
 - 存储路由级别的自定义数据
 - 实现权限控制和访问限制
 - 配置页面级别的设置（标题、布局等）
@@ -2804,9 +2803,9 @@ const preventBackNavigation = () => {
 
 ### **如何在路由中控制滚动行为？**
 
-createRouter 函数的参数中有一个 scrollBehavior,接收三个参数 to form savePosition;
+~~createRouter 函数的参数中有一个 scrollBehavior,接收三个参数 to form savePosition;~~
 
-然后通过返回位置对象或者位置信息来确定滚动的位置
+createRouter 函数的参数中有一个 scrollBehavior 选项，接收三个参数 `(to, from, savedPosition)`，通过返回位置对象来控制滚动位置。
 
 ## 深度分析与补充
 
@@ -3255,7 +3254,7 @@ router.beforeEach((to, from) => {
 
 ### **如何在导航失败（navigation failure）时做错误处理？**
 
-通过全局导航守卫,检查到导航失败时留在当前页面或者重定向到首页
+通过 `router.push/replace` 返回的 Promise 捕获错误，或在 `router.afterEach` 守卫中处理导航失败，可以根据失败类型采取不同的处理策略。
 
 ## 深度分析与补充
 
@@ -3638,7 +3637,7 @@ button:disabled {
 
 ### **`router.isReady()` 有什么用途？**
 
-用于等待异步路由加载完成
+`router.isReady()` 返回一个 Promise，在路由器完成初始导航时 resolve，主要用于确保路由系统已完全初始化，特别在 SSR 环境中非常重要。
 
 ## 深度分析与补充
 
@@ -4036,11 +4035,14 @@ const performanceMonitor = new RouterPerformanceMonitor(router)
 
 ### **如何实现命名路由并用其跳转？**
 
-在路由注册时将name属性进行命名
+在路由配置中通过 `name` 属性为路由命名，然后可以通过名称进行导航。
 
-Router-link : 使用to=‘{name:routeName}’
+Router-link : 使用to=‘name’
 
 router.push({name:'name'})
+**修正版本：**
+- Router-link 中使用对象形式：`:to="{ name: 'routeName' }"`
+- router.push({ name: 'routeName' })
 
 ## 深度分析与补充
 
@@ -4052,7 +4054,6 @@ router.push({name:'name'})
 **知识点系统梳理：**
 
 **命名路由的优势：**
-
 - 路径变更时不需要修改所有引用
 - 支持参数和查询字符串的灵活传递
 - 代码更具可读性和可维护性
@@ -4505,9 +4506,9 @@ const isActiveRoute = (routeName) => {
 
 ### **`alias` 与 `redirect` 的区别？**
 
-Alias: 定义别名，可以是多个
+**alias**: 为路由创建别名，URL保持不变，可以定义多个别名
 
-Redirect: 重定向
+**redirect**: 重定向到另一个路由，URL会发生改变
 
 ## 深度分析与补充
 
@@ -4925,17 +4926,17 @@ routeManager.addBulkRedirects({
 ### **路由导航守卫的执行顺序（全局、路由独享、组件内）？**
 
 1. 导航被触发
-2. 在失活的组件里面调用 beforeRouteLeave
-3. 全局导航守卫 beforeEach
-4. 重用的组件调用 beforeRouteUpdate
-5. 在路由配置中的 beforeEnter
-6. 解析异步组件
-7. 在被激活的组件里调用 beforeRouteEnter
-8. 调用全局的 beforeResolve
+2. ~~在失活的组件里面调用 beforeRouterLeave~~ 在失活组件中调用 `beforeRouteLeave` 守卫
+3. ~~全局导航守卫 beforEach~~ 调用全局的 `beforeEach` 守卫
+4. ~~重用的组件调用 beforeRouterUpdate~~ 在重用组件中调用 `beforeRouteUpdate` 守卫
+5. 在路由配置中调用 `beforeEnter` 守卫
+6. 解析异步路由组件
+7. ~~在被激活的组件里调用 befroeRouterEnter~~ 在被激活组件中调用 `beforeRouteEnter` 守卫
+8. ~~调用全局的 beforeRosolve~~ 调用全局的 `beforeResolve` 守卫
 9. 导航被确认
-10. 调用全局的afterEach
+10. 调用全局的 `afterEach` 钩子
 11. 触发DOM更新
-12. 调用beforeRouteEnter中导航守卫的next
+12. ~~调用beforeRouterEnter中导航守卫的next~~ 调用 `beforeRouteEnter` 守卫中传给 `next` 的回调函数
 
 ## 深度分析与补充
 
@@ -5354,7 +5355,7 @@ const guardManager = new NavigationGuardManager(router)
 
 ### **如何在 `<router-link>` 中设置 active-class？**
 
-使用active-class 或者全局配置 linkActiveClass
+通过 `active-class` 和 `exact-active-class` 属性设置自定义样式类，或者通过全局配置 `linkActiveClass` 和 `linkExactActiveClass` 统一设置。
 
 ## 深度分析与补充
 
