@@ -49,6 +49,27 @@ const complement = (nums = [], target) => {
 - **核心思路**: 每次移动较短的一侧指针，因为移动较长的一侧不可能得到更大面积
 
 #### 代码评估
+
+```javascript
+const getMaxWater = (nums = []) => {
+    if (!Arrary.isArray(nums) || nums.length < 2) return []
+    let left = 0
+    let right = nums.length - 1
+    let maxArea = 0
+
+    while (left < right) {
+        const width = right - left
+        const height = Math.min(nums[left], nums[right])
+        maxArea = Math.max(maxArea, width * height)
+        if (nums[left] < nums[right]) {
+            left++
+        } else {
+            right--
+        }
+    }
+    return maxArea
+}
+```
 **优点**: 实现完美，算法最优，边界处理完善  
 **评分**: ⭐⭐⭐⭐⭐
 
@@ -64,6 +85,25 @@ const complement = (nums = [], target) => {
 - **时间复杂度**: O(n)
 - **空间复杂度**: O(min(m,n))，m为字符集大小
 - **核心思路**: 维护滑动窗口，遇到重复字符时跳跃左指针
+
+```javascript
+const lengthOfLongestSubstring = (str = '') => {
+    if (typeof str !== 'string' || str.length === 0) return 0
+    let left = 0
+    let maxLen = 0
+    const lastIndex = new Map()
+    for (let right = 0; right < str.length; right++) {
+        let char = str[right]
+        if (lastIndex.has(char)) {
+            left = Math.max(left, lastIndex.get(char) + 1)
+        }
+        lastIndex.set(char, right)
+        maxLen = Math.max(maxLen, right - left + 1)
+    }
+
+    return maxLen
+}
+```
 
 #### 代码评估
 **优点**: 算法高效正确，处理重复字符的跳跃逻辑准确  
@@ -117,6 +157,37 @@ const getTopK = (nums = [], k) => {
 - **空间复杂度**: O(1)
 - **核心思路**: 判断中点在左有序区还是右有序区，决定搜索方向
 
+```javascript
+const searchInRotatedArray = (nums = [], target) => {
+    if (!Array.isArray(nums) || nums.length === 0) return -1
+
+    let left = 0
+    let right = nums.length - 1
+
+    while (left <= right) {
+        const mid = Math.floor((left + right) / 2)
+
+        if (nums[mid] === target) return mid
+
+        if (nums[left] <= nums[mid]) {
+            if (nums[left] <= target && target <= nums[mid]) {
+                right = mid - 1
+            } else {
+                left = mid + 1
+            }
+        } else {
+            if (nums[mid] <= target && target <= nums[right]) {
+                left = mid + 1
+            } else {
+                right = mid - 1
+            }
+        }
+    }
+
+    return -1
+}
+```
+
 #### 代码评估
 **优点**: 实现完全正确，逻辑清晰，注释详细  
 **评分**: ⭐⭐⭐⭐⭐
@@ -134,8 +205,18 @@ const getTopK = (nums = [], k) => {
 - **空间复杂度**: O(1)
 
 **方法2 (moveZeroesV2)**: ❌ 存在错误
+
 - **问题**: `filter(item => item > 0)` 会过滤掉负数
 - **正确写法**: `filter(item => item !== 0)`
+
+```javascript
+const moveZeroesV2 = (nums) => {
+    if (!Array.isArray(nums) || nums.length === 0) return []
+
+    const _filter = nums.filter(num => num !== 0)
+    return _filter.concat(Array(nums.length - _filter.length).fill(0))
+}
+```
 
 ## 知识点总结
 

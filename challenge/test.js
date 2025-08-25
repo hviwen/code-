@@ -158,29 +158,18 @@ const getMaxString = (str = '') => {
  * @returns 
  */
 const getTopK = (nums = [], k) => {
-    const map = new Map()
-    let count = 1
-    for (let i = 0; i < nums.length; i++) {
-        if (map.has(nums[i])) {
-            count++
-            map.set(nums[i], count)
+    if (!Array.isArray(nums) || nums.length === 0) return []
+
+    let map = new Map()
+    for (const num of nums) {
+        if (map.has(num)) {
+            map.set(num, map.get(num) + 1)
         } else {
-            count = 1
-            map.set(nums[i], count)
+            map.set(num, 1)
         }
     }
 
-    const sortedMap = new Map([...map.entries()].sort((a, b) => b[1] - a[1]))
-
-    const _values = []
-    for (const [key, value] of sortedMap.entries()) {
-        console.log(key, value)
-        if (value > 1) {
-            _values.push(key)
-        }
-    }
-
-    return _values.slice(0, k)
+    return [...map.entries()].sort((a, b) => b[1] - a[1]).map(([num, _]) => num).slice(0, k)
 }
 
 
@@ -286,6 +275,6 @@ const moveZeroes = (nums = []) => {
 const moveZeroesV2 = (nums = []) => {
     if (!Array.isArray(nums) || nums.length === 0) return []
 
-    const _filter = nums.filter(item => item > 0)
+    const _filter = nums.filter(item => item !== 0)
     return _filter.concat(Array(nums.length - _filter.length).fill(0))
 }
