@@ -203,6 +203,13 @@ interface User {
 ```
 
 ```javascript
+// 必要的导入语句
+import { defineStore } from 'pinia'
+import { useAuthStore } from '@/stores/auth'
+import { useRouteStore } from '@/stores/route'
+import { useCacheStore } from '@/stores/cache'
+import { useUserListStore } from '@/stores/userList'
+
 // 1. 路由配置 - 定义权限信息
 const routes = [
   {
@@ -243,7 +250,49 @@ const routes = [
   }
 ]
 
-// 2. 权限验证工具函数
+// 2. 认证状态管理 Store
+export const useAuthStore = defineStore('auth', {
+  state: () => ({
+    user: null,
+    token: null,
+    loading: false,
+    permissions: [],
+    roles: []
+  }),
+
+  getters: {
+    isAuthenticated: (state) => !!state.token,
+    hasRole: (state) => (role) => state.roles.includes(role),
+    hasPermission: (state) => (permission) => state.permissions.includes(permission)
+  },
+
+  actions: {
+    setUserInfo(userInfo) {
+      this.user = userInfo
+      this.roles = userInfo.roles || []
+      this.permissions = userInfo.permissions || []
+    },
+
+    setToken(token) {
+      this.token = token
+    },
+
+    setLoading(loading) {
+      this.loading = loading
+    },
+
+    logout() {
+      this.user = null
+      this.token = null
+      this.roles = []
+      this.permissions = []
+      localStorage.removeItem('token')
+      sessionStorage.removeItem('token')
+    }
+  }
+})
+
+// 3. 权限验证工具函数
 const authUtils = {
   // 获取用户token
   getToken() {
@@ -279,10 +328,12 @@ const authUtils = {
   }
 }
 
-// 3. 全局前置守卫 - 权限验证
+// 4. 全局前置守卫 - 权限验证
 router.beforeEach(async (to, from, next) => {
+  const authStore = useAuthStore()
+
   // 显示加载状态
-  store.commit('SET_LOADING', true)
+  authStore.setLoading(true)
 
   try {
     // 检查是否需要认证
@@ -324,7 +375,7 @@ router.beforeEach(async (to, from, next) => {
       }
 
       // 权限验证通过，保存用户信息到 store
-      store.commit('SET_USER_INFO', userInfo)
+      authStore.setUserInfo(userInfo)
     }
 
     next()
@@ -334,10 +385,12 @@ router.beforeEach(async (to, from, next) => {
   }
 })
 
-// 4. Vue Router 4 推荐语法（返回值方式）
+// 5. Vue Router 4 推荐语法（返回值方式）
 router.beforeEach(async (to, from) => {
+  const authStore = useAuthStore()
+
   // 显示加载状态
-  store.commit('SET_LOADING', true)
+  authStore.setLoading(true)
 
   try {
     // 检查是否需要认证
@@ -375,7 +428,7 @@ router.beforeEach(async (to, from) => {
       }
 
       // 权限验证通过，保存用户信息到 store
-      store.commit('SET_USER_INFO', userInfo)
+      authStore.setUserInfo(userInfo)
     }
 
     // 返回 true 表示继续导航
@@ -384,16 +437,17 @@ router.beforeEach(async (to, from) => {
     console.error('路由权限验证失败:', error)
     return '/login'
   } finally {
-    store.commit('SET_LOADING', false)
+    authStore.setLoading(false)
   }
 })
 
-// 5. 后置守卫 - 清理加载状态
+// 6. 后置守卫 - 清理加载状态
 router.afterEach(() => {
-  store.commit('SET_LOADING', false)
+  const authStore = useAuthStore()
+  authStore.setLoading(false)
 })
 
-// 5. 动态路由权限（可选）
+// 7. 动态路由权限（可选）
 const dynamicRoutes = [
   {
     path: '/dynamic',
@@ -464,28 +518,34 @@ const dynamicRoutes = [
 
 ```javascript
 // 1. 全局加载状态管理
-import { createStore } from 'vuex'
+import { defineStore } from 'pinia'
 
-const store = createStore({
-  state: {
+// 使用 Pinia 定义路由状态 store
+export const useRouteStore = defineStore('route', {
+  state: () => ({
     isRouteLoading: false,
     routeError: null
-  },
-  mutations: {
-    SET_ROUTE_LOADING(state, loading) {
-      state.isRouteLoading = loading
+  }),
+  actions: {
+    setRouteLoading(loading) {
+      this.isRouteLoading = loading
     },
-    SET_ROUTE_ERROR(state, error) {
-      state.routeError = error
+    setRouteError(error) {
+      this.routeError = error
     }
   }
 })
 
+// 创建 store 实例（在 main.js 中使用）
+const routeStore = useRouteStore()
+
 // 2. 路由守卫中的异步验证
 router.beforeEach(async (to, from, next) => {
+  const routeStore = useRouteStore()
+
   // 开始加载
-  store.commit('SET_ROUTE_LOADING', true)
-  store.commit('SET_ROUTE_ERROR', null)
+  routeStore.setRouteLoading(true)
+  routeStore.setRouteError(null)
 
   try {
     // 异步验证逻辑
@@ -505,20 +565,22 @@ router.beforeEach(async (to, from, next) => {
     next()
   } catch (error) {
     console.error('路由验证失败:', error)
-    store.commit('SET_ROUTE_ERROR', error.message)
+    routeStore.setRouteError(error.message)
     next('/error')
   }
 })
 
 // 3. 路由完成后清理加载状态
 router.afterEach(() => {
-  store.commit('SET_ROUTE_LOADING', false)
+  const routeStore = useRouteStore()
+  routeStore.setRouteLoading(false)
 })
 
 // 4. 路由错误处理
 router.onError((error) => {
-  store.commit('SET_ROUTE_LOADING', false)
-  store.commit('SET_ROUTE_ERROR', error.message)
+  const routeStore = useRouteStore()
+  routeStore.setRouteLoading(false)
+  routeStore.setRouteError(error.message)
 })
 ```
 
@@ -558,20 +620,21 @@ router.onError((error) => {
 
 <script>
 import { computed } from 'vue'
-import { useStore } from 'vuex'
+import { useRouteStore } from '@/stores/route'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'App',
   setup() {
-    const store = useStore()
+    const routeStore = useRouteStore()
     const router = useRouter()
 
-    const isRouteLoading = computed(() => store.state.isRouteLoading)
-    const routeError = computed(() => store.state.routeError)
+    // 使用 storeToRefs 保持响应性
+    const { isRouteLoading, routeError } = storeToRefs(routeStore)
 
     const retry = () => {
-      store.commit('SET_ROUTE_ERROR', null)
+      routeStore.setRouteError(null)
       router.go(0) // 重新加载当前路由
     }
 
@@ -879,6 +942,7 @@ prefetchData(route.params.id)
 </script>
 ```
 
+```javascript
 // 2. 全局守卫实现数据预取
 router.beforeResolve(async (to, from, next) => {
   // 检查路由是否需要数据预取
@@ -887,9 +951,13 @@ router.beforeResolve(async (to, from, next) => {
       // 根据路由配置预取数据
       const prefetchPromises = to.meta.prefetch.map(async (config) => {
         const data = await config.fetch(to.params, to.query)
-        // 将数据存储到 store 或路由 meta 中
+        // 将数据存储到 Pinia store 或路由 meta 中
         if (config.store) {
-          store.commit(config.store, data)
+          // 使用 Pinia store action 存储数据
+          const store = config.storeInstance || eval(`use${config.store}Store()`)
+          if (store && store[config.action]) {
+            store[config.action](data)
+          }
         }
         return { key: config.key, data }
       })
@@ -923,12 +991,14 @@ const routes = [
         {
           key: 'user',
           fetch: (params) => fetchUser(params.id),
-          store: 'SET_CURRENT_USER'
+          store: 'User',
+          action: 'setCurrentUser'
         },
         {
           key: 'posts',
           fetch: (params) => fetchUserPosts(params.id),
-          store: 'SET_USER_POSTS'
+          store: 'User',
+          action: 'setUserPosts'
         }
       ]
     }
@@ -942,7 +1012,8 @@ const routes = [
         {
           key: 'stats',
           fetch: () => fetchDashboardStats(),
-          store: 'SET_DASHBOARD_STATS'
+          store: 'Dashboard',
+          action: 'setStats'
         }
       ]
     }
@@ -1194,90 +1265,6 @@ server {
 </IfModule>
 ```
 
-**实际项目注意事项：**
-1. **子路径部署**：正确配置 base URL 避免资源加载失败
-2. **API 路由优先级**：确保 API 路由在 SPA 回退规则之前处理
-3. **静态资源处理**：正确配置静态资源的缓存和压缩
-4. **错误页面**：配置适当的 404 和 500 错误页面处理
-
-**改进版本：**
-
-Vue Router 4 提供了三种历史模式，每种都有不同的特点和适用场景：
-
-```javascript
-import { createRouter, createWebHistory, createWebHashHistory, createMemoryHistory } from 'vue-router'
-
-// 1. HTML5 History 模式（推荐用于生产环境）
-const router = createRouter({
-  history: createWebHistory(process.env.BASE_URL),
-  routes
-})
-
-// 2. Hash 模式（兼容性最好）
-const router = createRouter({
-  history: createWebHashHistory(),
-  routes
-})
-
-// 3. Memory 模式（用于 SSR 或测试环境）
-const router = createRouter({
-  history: createMemoryHistory(),
-  routes
-})
-```
-
-**各模式详细对比：**
-
-| 特性 | HTML5 History | Hash | Memory |
-|------|---------------|------|--------|
-| URL 格式 | `/user/123` | `/#/user/123` | 内存中 |
-| SEO 友好 | ✅ | ❌ | ❌ |
-| 服务器配置 | 需要 | 不需要 | 不适用 |
-| 浏览器兼容性 | IE10+ | 所有浏览器 | 不适用 |
-| 原生分享 | ✅ | ⚠️ | ❌ |
-
-**服务端配置示例：**
-
-```nginx
-# Nginx 配置
-server {
-    listen 80;
-    server_name example.com;
-    root /var/www/html;
-    index index.html;
-
-    # HTML5 History 模式配置
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    # API 路由不受影响
-    location /api {
-        proxy_pass http://backend;
-    }
-
-    # 静态资源缓存
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-}
-```
-
-```apache
-# Apache 配置 (.htaccess)
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    RewriteBase /
-
-    # 处理 Angular/Vue/React 路由
-    RewriteRule ^index\.html$ - [L]
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule . /index.html [L]
-</IfModule>
-```
-
 ```javascript
 // Express.js 服务器配置
 const express = require('express')
@@ -1380,7 +1367,15 @@ const createAppRouter = () => {
 }
 ```
 
+**实际项目注意事项：**
+
+1. **子路径部署**：正确配置 base URL 避免资源加载失败
+2. **API 路由优先级**：确保 API 路由在 SPA 回退规则之前处理
+3. **静态资源处理**：正确配置静态资源的缓存和压缩
+4. **错误页面**：配置适当的 404 和 500 错误页面处理
+
 **使用场景对比：**
+
 - **HTML5 History**: 生产环境推荐，SEO 友好，需要服务端配置
 - **Hash 模式**: 兼容性要求高的项目，无需服务端配置
 - **Memory 模式**: SSR、测试环境、Electron 应用
@@ -1499,56 +1494,87 @@ const routes = [
   }
 ]
 
-// 5. 使用 Vuex/Pinia 管理缓存状态
-// store/modules/cache.js
-export default {
-  namespaced: true,
-  state: {
-    cachedViews: [],
-    visitedViews: []
-  },
-  mutations: {
-    ADD_CACHED_VIEW(state, view) {
-      if (state.cachedViews.includes(view.name)) return
-      if (view.meta && view.meta.keepAlive) {
-        state.cachedViews.push(view.name)
-      }
-    },
-    DEL_CACHED_VIEW(state, view) {
-      const index = state.cachedViews.indexOf(view.name)
-      if (index > -1) {
-        state.cachedViews.splice(index, 1)
-      }
-    },
-    DEL_ALL_CACHED_VIEWS(state) {
-      state.cachedViews = []
-    }
-  },
+// 5. 用户列表状态管理 Store
+// stores/userList.js
+export const useUserListStore = defineStore('userList', {
+  state: () => ({
+    users: [],
+    lastUpdate: null,
+    savedState: null
+  }),
+
   actions: {
-    addCachedView({ commit }, view) {
-      commit('ADD_CACHED_VIEW', view)
+    setUsers(users) {
+      this.users = users
+      this.lastUpdate = Date.now()
     },
-    delCachedView({ commit }, view) {
-      commit('DEL_CACHED_VIEW', view)
+
+    saveState(state) {
+      this.savedState = state
     },
-    delAllCachedViews({ commit }) {
-      commit('DEL_ALL_CACHED_VIEWS')
+
+    clearSavedState() {
+      this.savedState = null
     }
   }
-}
+})
+
+// 6. 使用 Pinia 管理缓存状态
+// stores/cache.js
+export const useCacheStore = defineStore('cache', {
+  state: () => ({
+    cachedViews: [],
+    visitedViews: []
+  }),
+
+  actions: {
+    addCachedView(view) {
+      if (this.cachedViews.includes(view.name)) return
+      if (view.meta && view.meta.keepAlive) {
+        this.cachedViews.push(view.name)
+      }
+    },
+
+    delCachedView(view) {
+      const index = this.cachedViews.indexOf(view.name)
+      if (index > -1) {
+        this.cachedViews.splice(index, 1)
+      }
+    },
+
+    delAllCachedViews() {
+      this.cachedViews = []
+    },
+
+    addVisitedView(view) {
+      if (this.visitedViews.some(v => v.path === view.path)) return
+      this.visitedViews.push({
+        name: view.name,
+        path: view.path,
+        title: view.meta?.title || view.name
+      })
+    }
+  }
+})
 
 // 在路由守卫中管理缓存
 router.beforeEach((to, from, next) => {
+  const cacheStore = useCacheStore()
+
   // 添加到缓存
   if (to.meta.keepAlive) {
-    store.dispatch('cache/addCachedView', to)
+    cacheStore.addCachedView(to)
   }
+
+  // 添加到访问历史
+  cacheStore.addVisitedView(to)
+
   next()
 })
 ```
 
 ```vue
-<!-- 6. 高级缓存控制组件 -->
+<!-- 7. 高级缓存控制组件 -->
 <template>
   <router-view v-slot="{ Component, route }">
     <KeepAlive
@@ -1568,16 +1594,18 @@ router.beforeEach((to, from, next) => {
 
 <script>
 import { computed, ref, watch } from 'vue'
-import { useStore, useRoute } from 'vuex'
+import { useCacheStore } from '@/stores/cache'
+import { useRoute } from 'vue-router'
+import { storeToRefs } from 'pinia'
 
 export default {
   name: 'CachedRouterView',
   setup() {
-    const store = useStore()
+    const cacheStore = useCacheStore()
     const route = useRoute()
     const maxCacheCount = ref(10) // 最大缓存组件数量
 
-    const cachedViews = computed(() => store.state.cache.cachedViews)
+    const { cachedViews } = storeToRefs(cacheStore)
 
     // 生成组件缓存 key
     const getComponentKey = (route) => {
@@ -1608,7 +1636,7 @@ export default {
 
     // 清除指定缓存
     const clearCache = (viewName) => {
-      store.dispatch('cache/delCachedView', { name: viewName })
+      cacheStore.delCachedView({ name: viewName })
     }
 
     // 监听路由变化，自动管理缓存
@@ -1633,7 +1661,7 @@ export default {
 ```
 
 ```javascript
-// 7. 组件内的缓存生命周期处理
+// 8. 组件内的缓存生命周期处理
 export default {
   name: 'UserList',
   data() {
@@ -1748,7 +1776,8 @@ fetchUsers()
   methods: {
     // 检查数据新鲜度
     checkDataFreshness() {
-      const lastUpdate = this.$store.state.userList.lastUpdate
+      const userListStore = useUserListStore()
+      const lastUpdate = userListStore.lastUpdate
       const now = Date.now()
       const ttl = 5 * 60 * 1000 // 5分钟
 
@@ -1759,7 +1788,8 @@ fetchUsers()
 
     // 保存当前状态
     saveCurrentState() {
-      this.$store.commit('userList/saveState', {
+      const userListStore = useUserListStore()
+      userListStore.saveState({
         searchQuery: this.searchQuery,
         currentPage: this.currentPage,
         scrollPosition: document.documentElement.scrollTop
@@ -1768,7 +1798,8 @@ fetchUsers()
 
     // 恢复状态
     restoreState() {
-      const savedState = this.$store.state.userList.savedState
+      const userListStore = useUserListStore()
+      const savedState = userListStore.savedState
       if (savedState) {
         this.searchQuery = savedState.searchQuery
         this.currentPage = savedState.currentPage
