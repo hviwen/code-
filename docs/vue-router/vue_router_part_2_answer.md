@@ -136,12 +136,21 @@ const routes = [
   { path: '/login', name: 'login', component: LoginView }
 ]
 
+// Vue Router 3 语法（仍然支持）
 router.beforeEach((to, from, next) => { // 修正：参数应该是 (to, from, next)
   if (to.meta.requiresAuth && !getToken()) { // 修正：逻辑错误和方法名错误
     next('/login') // 修正：应该使用 next() 而不是 router.redirect()
   } else {
     next()
   }
+})
+
+// Vue Router 4 推荐语法（返回值方式）
+router.beforeEach((to, from) => {
+  if (to.meta.requiresAuth && !getToken()) {
+    return '/login' // 返回重定向路径
+  }
+  // 返回 undefined 或 true 表示继续导航
 })
 ```
 
@@ -167,6 +176,31 @@ router.beforeEach((to, from, next) => { // 修正：参数应该是 (to, from, n
 **改进版本：**
 
 基于 `meta` 的权限路由需要在路由配置中定义权限信息，然后在导航守卫中进行权限验证：
+
+```typescript
+// TypeScript 类型定义
+interface RouteMeta {
+  requiresAuth?: boolean
+  roles?: string[]
+  permissions?: string[]
+  title?: string
+  keepAlive?: boolean
+  layout?: string
+}
+
+// 扩展 vue-router 的类型定义
+declare module 'vue-router' {
+  interface RouteMeta extends RouteMeta {}
+}
+
+// 用户信息类型
+interface User {
+  id: string
+  username: string
+  roles: string[]
+  permissions: string[]
+}
+```
 
 ```javascript
 // 1. 路由配置 - 定义权限信息
@@ -300,7 +334,61 @@ router.beforeEach(async (to, from, next) => {
   }
 })
 
-// 4. 后置守卫 - 清理加载状态
+// 4. Vue Router 4 推荐语法（返回值方式）
+router.beforeEach(async (to, from) => {
+  // 显示加载状态
+  store.commit('SET_LOADING', true)
+
+  try {
+    // 检查是否需要认证
+    if (to.meta.requiresAuth) {
+      const token = authUtils.getToken()
+
+      // 未登录，返回登录页路由对象
+      if (!token) {
+        return {
+          path: '/login',
+          query: { redirect: to.fullPath }
+        }
+      }
+
+      // 获取用户信息进行权限验证
+      const userInfo = await authUtils.getUserInfo()
+      if (!userInfo) {
+        // token 无效，清除并返回登录页
+        localStorage.removeItem('token')
+        sessionStorage.removeItem('token')
+        return {
+          path: '/login',
+          query: { redirect: to.fullPath }
+        }
+      }
+
+      // 检查角色权限
+      if (to.meta.roles && !authUtils.hasRole(userInfo.roles, to.meta.roles)) {
+        return '/403' // 权限不足
+      }
+
+      // 检查具体权限
+      if (to.meta.permissions && !authUtils.hasPermission(userInfo.permissions, to.meta.permissions)) {
+        return '/403'
+      }
+
+      // 权限验证通过，保存用户信息到 store
+      store.commit('SET_USER_INFO', userInfo)
+    }
+
+    // 返回 true 表示继续导航
+    return true
+  } catch (error) {
+    console.error('路由权限验证失败:', error)
+    return '/login'
+  } finally {
+    store.commit('SET_LOADING', false)
+  }
+})
+
+// 5. 后置守卫 - 清理加载状态
 router.afterEach(() => {
   store.commit('SET_LOADING', false)
 })
@@ -470,7 +558,8 @@ router.onError((error) => {
 
 <script>
 import { computed } from 'vue'
-import { useStore, useRouter } from 'vuex'
+import { useStore } from 'vuex'
+import { useRouter } from 'vue-router'
 
 export default {
   name: 'App',
@@ -535,7 +624,7 @@ export default {
 ```
 
 ```javascript
-// 6. 组件级别的异步验证（避免闪烁）
+// 6. 组件级别的异步验证（避免闪烁）- Options API
 export default {
   name: 'UserProfile',
   async beforeRouteEnter(to, from, next) {
@@ -570,6 +659,51 @@ export default {
     }
   }
 }
+```
+
+```vue
+<!-- 7. Composition API 版本（推荐） -->
+<template>
+  <div v-if="loading">加载中...</div>
+  <div v-else-if="userData">
+    <UserProfileContent :user="userData" />
+  </div>
+  <div v-else>用户不存在</div>
+</template>
+
+<script setup>
+import { ref, watch } from 'vue'
+import { useRoute, useRouter, onBeforeRouteUpdate } from 'vue-router'
+
+const route = useRoute()
+const router = useRouter()
+
+const userData = ref(null)
+const loading = ref(true)
+
+// 加载用户数据
+const loadUserData = async (userId) => {
+  loading.value = true
+  try {
+    userData.value = await fetchUserData(userId)
+  } catch (error) {
+    console.error('加载用户数据失败:', error)
+    router.push('/error')
+  } finally {
+    loading.value = false
+  }
+}
+
+// 路由参数变化时重新加载数据
+onBeforeRouteUpdate(async (to, from) => {
+  if (to.params.id !== from.params.id) {
+    await loadUserData(to.params.id)
+  }
+})
+
+// 初始加载
+loadUserData(route.params.id)
+</script>
 ```
 
 **使用场景对比：**
@@ -619,7 +753,7 @@ export default {
 数据预取可以在路由导航过程中提前加载数据，提升用户体验。有多种实现方式：
 
 ```javascript
-// 1. 组件内守卫实现数据预取
+// 1. 组件内守卫实现数据预取 - Options API
 export default {
   name: 'UserProfile',
   data() {
@@ -677,6 +811,73 @@ export default {
     }
   }
 }
+```
+
+```vue
+<!-- 1.1 Composition API 版本（推荐） -->
+<template>
+  <div v-if="loading">
+    <div class="loading-spinner">加载中...</div>
+  </div>
+  <div v-else-if="error" class="error-message">
+    <p>加载失败: {{ error }}</p>
+    <button @click="retry">重试</button>
+  </div>
+  <div v-else>
+    <UserInfo :user="user" />
+    <UserPosts :posts="posts" />
+  </div>
+</template>
+
+<script setup>
+import { ref, watch } from 'vue'
+import { useRoute, onBeforeRouteUpdate } from 'vue-router'
+
+const route = useRoute()
+
+const user = ref(null)
+const posts = ref([])
+const loading = ref(true)
+const error = ref(null)
+
+// 数据预取函数
+const prefetchData = async (userId) => {
+  loading.value = true
+  error.value = null
+
+  try {
+    // 并行获取用户信息和文章列表
+    const [userData, postsData] = await Promise.all([
+      fetchUser(userId),
+      fetchUserPosts(userId)
+    ])
+
+    user.value = userData
+    posts.value = postsData
+  } catch (err) {
+    console.error('数据预取失败:', err)
+    error.value = err.message
+  } finally {
+    loading.value = false
+  }
+}
+
+// 路由参数变化时重新预取数据
+onBeforeRouteUpdate(async (to, from) => {
+  if (to.params.id !== from.params.id) {
+    await prefetchData(to.params.id)
+  }
+})
+
+// 重试函数
+const retry = () => {
+  prefetchData(route.params.id)
+}
+
+// 初始数据预取
+prefetchData(route.params.id)
+</script>
+```
 
 // 2. 全局守卫实现数据预取
 router.beforeResolve(async (to, from, next) => {
@@ -1455,7 +1656,94 @@ export default {
     console.log('UserList 组件被失活')
     // 保存当前状态
     this.saveCurrentState()
-  },
+  }
+}
+```
+
+```vue
+<!-- Composition API 版本 -->
+<template>
+  <div class="user-list">
+    <div v-if="loading">加载中...</div>
+    <div v-else>
+      <UserItem
+        v-for="user in users"
+        :key="user.id"
+        :user="user"
+      />
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, onActivated, onDeactivated } from 'vue'
+
+const users = ref([])
+const loading = ref(false)
+const scrollPosition = ref(0)
+
+// 检查数据新鲜度
+const checkDataFreshness = () => {
+  const lastUpdate = localStorage.getItem('userListLastUpdate')
+  const now = Date.now()
+
+  // 如果数据超过5分钟，重新获取
+  if (!lastUpdate || now - parseInt(lastUpdate) > 5 * 60 * 1000) {
+    fetchUsers()
+  }
+}
+
+// 获取用户数据
+const fetchUsers = async () => {
+  loading.value = true
+  try {
+    const response = await api.getUsers()
+    users.value = response.data
+    localStorage.setItem('userListLastUpdate', Date.now().toString())
+  } catch (error) {
+    console.error('获取用户列表失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 保存当前状态
+const saveCurrentState = () => {
+  // 保存滚动位置
+  scrollPosition.value = window.pageYOffset || document.documentElement.scrollTop
+  sessionStorage.setItem('userListScrollPosition', scrollPosition.value.toString())
+
+  // 保存其他状态...
+}
+
+// 恢复状态
+const restoreState = () => {
+  // 恢复滚动位置
+  const savedPosition = sessionStorage.getItem('userListScrollPosition')
+  if (savedPosition) {
+    nextTick(() => {
+      window.scrollTo(0, parseInt(savedPosition))
+    })
+  }
+}
+
+// 组件被缓存激活时调用
+onActivated(() => {
+  console.log('UserList 组件被激活')
+  checkDataFreshness()
+  restoreState()
+})
+
+// 组件被缓存失活时调用
+onDeactivated(() => {
+  console.log('UserList 组件被失活')
+  saveCurrentState()
+})
+
+// 初始数据加载
+fetchUsers()
+</script>
+```,
 
   methods: {
     // 检查数据新鲜度
