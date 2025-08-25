@@ -1822,7 +1822,7 @@ onDeactivated(() => {
   saveCurrentState();
 });
 
-checkDataFreshness = () => {
+const checkDataFreshness = () => {
   const userListStore = useUserListStore();
   const lastUpdate = userListStore.lastUpdate;
   const now = Date.now();
@@ -2205,6 +2205,8 @@ router.beforeEach(async (to, from, next) => {
 - 用户体验：流程指示、错误处理
 - 最佳实践：简单用 query，复杂用 storage
 
+
+
 ### **如何处理多个并发导航（重复点击）导致的导航取消错误？**
 
 通过防抖函数、导航状态管理、错误分类处理等多种方式来解决并发导航问题，确保用户体验的流畅性。
@@ -2567,6 +2569,8 @@ export default {
 - 超时机制：AbortController + setTimeout
 - 用户体验：加载状态、错误提示、重试机制
 
+
+
 ### **如何实现路由级别的滚动恢复（back/forward）？**
 
 Vue Router 提供了内置的 `scrollBehavior` 配置，结合自定义的滚动位置管理可以实现完善的滚动恢复功能。
@@ -2923,6 +2927,8 @@ const routes = [
 - 返回值：{ top, left } 或 Promise
 - 锚点处理：to.hash + 偏移计算
 - 缓存策略：sessionStorage + TTL 机制
+
+
 
 ### **Vue Router 中如何处理动态匹配优先级？例如 `/user/:id` 与 `/user/profile` 的匹配顺序。**
 
