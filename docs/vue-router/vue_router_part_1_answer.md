@@ -299,7 +299,7 @@ const goToSpecificHistory = () => router.go(-3)
 **问题本质解读：** 这道题考察动态路由的概念和参数传递机制，面试官想了解你是否掌握路由参数的定义、获取和动态路由管理。
 
 **技术错误纠正：**
-- 动态路由不仅仅是"相同页面"，而是路由模式的复用
+- 动态路由不仅仅是"相同页面"，而是**路由模式的复用**
 - router.addRoute() 和 router.removeRoute() 是动态路由管理，与路由参数是不同概念
 
 **知识点系统梳理：**
@@ -2091,6 +2091,7 @@ router.beforeEach((to, from) => {
 **知识点系统梳理：**
 
 **meta字段的作用：**
+
 - 存储路由级别的自定义数据
 - 实现权限控制和访问限制
 - 配置页面级别的设置（标题、布局等）
@@ -2801,7 +2802,7 @@ const preventBackNavigation = () => {
 
 
 
-**如何在路由中控制滚动行为？**
+### **如何在路由中控制滚动行为？**
 
 createRouter 函数的参数中有一个 scrollBehavior,接收三个参数 to form savePosition;
 
@@ -3252,7 +3253,7 @@ router.beforeEach((to, from) => {
 
 
 
-**如何在导航失败（navigation failure）时做错误处理？**
+### **如何在导航失败（navigation failure）时做错误处理？**
 
 通过全局导航守卫,检查到导航失败时留在当前页面或者重定向到首页
 
@@ -3635,9 +3636,9 @@ button:disabled {
 
 
 
-**`router.isReady()` 有什么用途？**
+### **`router.isReady()` 有什么用途？**
 
-:
+用于等待异步路由加载完成
 
 ## 深度分析与补充
 
@@ -4033,11 +4034,11 @@ const performanceMonitor = new RouterPerformanceMonitor(router)
 
 
 
-**如何实现命名路由并用其跳转？**
+### **如何实现命名路由并用其跳转？**
 
 在路由注册时将name属性进行命名
 
-Router-link : 使用to=‘name’
+Router-link : 使用to=‘{name:routeName}’
 
 router.push({name:'name'})
 
@@ -4051,6 +4052,7 @@ router.push({name:'name'})
 **知识点系统梳理：**
 
 **命名路由的优势：**
+
 - 路径变更时不需要修改所有引用
 - 支持参数和查询字符串的灵活传递
 - 代码更具可读性和可维护性
@@ -4501,7 +4503,7 @@ const isActiveRoute = (routeName) => {
 
 
 
-**`alias` 与 `redirect` 的区别？**
+### **`alias` 与 `redirect` 的区别？**
 
 Alias: 定义别名，可以是多个
 
@@ -4920,20 +4922,20 @@ routeManager.addBulkRedirects({
 
 
 
-**路由导航守卫的执行顺序（全局、路由独享、组件内）？**
+### **路由导航守卫的执行顺序（全局、路由独享、组件内）？**
 
 1. 导航被触发
-2. 在失活的组件里面调用 beforeRouterLeave
-3. 全局导航守卫 beforEach
-4. 重用的组件调用 beforeRouterUpdate
+2. 在失活的组件里面调用 beforeRouteLeave
+3. 全局导航守卫 beforeEach
+4. 重用的组件调用 beforeRouteUpdate
 5. 在路由配置中的 beforeEnter
 6. 解析异步组件
-7. 在被激活的组件里调用 befroeRouterEnter
-8. 调用全局的 beforeRosolve
+7. 在被激活的组件里调用 beforeRouteEnter
+8. 调用全局的 beforeResolve
 9. 导航被确认
 10. 调用全局的afterEach
 11. 触发DOM更新
-12. 调用beforeRouterEnter中导航守卫的next
+12. 调用beforeRouteEnter中导航守卫的next
 
 ## 深度分析与补充
 
@@ -5350,7 +5352,7 @@ const guardManager = new NavigationGuardManager(router)
 
 
 
-**如何在 `<router-link>` 中设置 active-class？**
+### **如何在 `<router-link>` 中设置 active-class？**
 
 使用active-class 或者全局配置 linkActiveClass
 
