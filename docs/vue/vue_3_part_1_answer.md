@@ -2944,7 +2944,9 @@ defineExpose({
   // sortConfig            // 排序配置
 })
 </script>
+```
 
+```javascript
 // 3. 使用组合式函数的封装
 function useFormValidation() {
   // 内部状态
@@ -2994,7 +2996,9 @@ function useFormValidation() {
     // touched
   }
 }
+```
 
+```typescript
 // 4. TypeScript中的接口定义
 interface UserCardExposed {
   refresh(): Promise<void>
@@ -3095,7 +3099,8 @@ defineExpose({
 
 ---
 
-**什么是 `defineAsyncComponent`？什么时候使用？**
+
+### **什么是 `defineAsyncComponent`？什么时候使用？**
 
 动态加载异步组件，用于性能优化。当某个组件暂时不在渲染内容中时，先不需要将可能用到的所有组件全部加载，而是在当需要显示的时候按需加载。
 
@@ -3176,7 +3181,9 @@ const routes = [
     })
   }
 ]
+```
 
+```vue
 // 4. 条件性异步加载
 <template>
   <div>
@@ -3208,7 +3215,9 @@ const AsyncChart = defineAsyncComponent({
   delay: 100
 })
 </script>
+```
 
+```javascript
 // 5. 第三方库的异步加载
 const AsyncEditor = defineAsyncComponent({
   loader: async () => {
@@ -3247,7 +3256,9 @@ const AsyncUserProfile = createAsyncComponent('./UserProfile.vue', {
   delay: 100,
   timeout: 5000
 })
+```
 
+```vue
 // 7. 与Suspense结合使用
 <template>
   <div class="app">
@@ -3268,7 +3279,9 @@ const AsyncUserProfile = createAsyncComponent('./UserProfile.vue', {
 <script setup>
 const AsyncDashboard = defineAsyncComponent(() => import('./Dashboard.vue'))
 </script>
+```
 
+```javascript
 // 8. 错误重试机制
 const AsyncComponentWithRetry = defineAsyncComponent({
   loader: () => import('./UnstableComponent.vue'),
@@ -3419,9 +3432,10 @@ onMounted(() => {
 
 ---
 
-**如何在模板中绑定 class 和 style（双向/多值）？**
 
-可以使用 :calss，：style 动态属性，以数组的方式传入多个值
+### **如何在模板中绑定 class 和 style（双向/多值）？**
+
+可以使用 :class，:style 动态属性，以数组或者对象的方式传入多个值
 
 ## 深度分析与补充
 
@@ -3914,7 +3928,8 @@ const memoizedStyles = computed(() => ({
 
 ---
 
-**组件的 `emits` 选项有什么作用？**
+
+### **组件的 `emits` 选项有什么作用？**
 
 ~~用于接收父组件传递的事件方法，以数组的方式接收多个，返回一个emit可以在事件执行时调用~~
 
@@ -3944,7 +3959,7 @@ const memoizedStyles = computed(() => ({
 - TypeScript形式：类型安全的事件声明
 
 **实战应用举例：**
-```javascript
+```vue
 // 1. 基础的emits声明
 <template>
   <div class="custom-button">
@@ -4348,7 +4363,8 @@ emit('user-login', true)
 
 ---
 
-**如何在 Vue 3 中使用 TypeScript 定义组件 props？**
+
+### **如何在 Vue 3 中使用 TypeScript 定义组件 props？**
 
 使用defineComponent 或者 defineProps
 
@@ -4785,11 +4801,11 @@ interface Props {
 
 ---
 
-**`watch` 的 `immediate` 与 `deep` 选项分别做什么？**
+### **`watch` 的 `immediate` 与 `deep` 选项分别做什么？**
 
-immediate 是监听ref getter 数组的第一次时立即执行一次，此时的oldValue为undefined
+immediate 是 ~~监听ref getter 数组的第一次时立即执行一次，此时的oldValue为undefined~~ 组件创建式立即执行监听回调
 
-deep时监听reactive 内嵌套属性的变化，也发生响应
+deep ~~时监听reactive 内嵌套属性的变化，也发生响应~~ 深入监听对象内部属性变化（会影响性能）
 
 ## 深度分析与补充
 
@@ -4962,9 +4978,11 @@ watch(specificData, callback)
 
 ---
 
-**Vue 3 中如何实现组件懒加载？**
 
-使用动态 import（）或者 defineAsyncComponent
+### **Vue 3 中如何实现组件懒加载？**
+
+- () => import()
+- defineAsyncComponent
 
 ## 深度分析与补充
 
@@ -5014,6 +5032,7 @@ const routes = [
   }
 ]
 
+```vue
 // 4. 条件性懒加载
 <template>
   <div>
@@ -5034,7 +5053,9 @@ const AsyncChart = defineAsyncComponent({
   delay: 100
 })
 </script>
+```
 
+```javascript
 // 5. 第三方库的懒加载
 const AsyncEditor = defineAsyncComponent({
   loader: async () => {
@@ -5074,9 +5095,10 @@ preloadComponent(() => import('./ImportantComponent.vue'))
 
 ---
 
-**为什么尽量避免在模板中进行昂贵计算？有什么替代方案？**
 
-模版中进行昂贵的计算会导致DOM更新效率变低，使得交互卡顿。
+### **为什么尽量避免在模板中进行昂贵计算？有什么替代方案？**
+
+模板中进行昂贵的计算会导致DOM更新效率变低，使得交互卡顿。
 
 可以使用 computed 将计算结果缓存。
 
@@ -5099,7 +5121,7 @@ preloadComponent(() => import('./ImportantComponent.vue'))
 **替代方案和最佳实践：**
 
 **实战应用举例：**
-```javascript
+```vue
 // ❌ 错误示例：模板中的昂贵计算
 <template>
   <div>
@@ -5329,7 +5351,8 @@ onUnmounted(() => {
 
 ---
 
-**如何在组件间共享逻辑（composition vs mixin）？**
+
+### **如何在组件间共享逻辑（composition vs mixin）？**
 
 可以使用组合式函数
 
@@ -5591,7 +5614,9 @@ export function useLocalStorage(key, defaultValue) {
     removeValue
   }
 }
+```
 
+```vue
 // 6. 在组件中使用（清晰明确）
 <script setup>
 import { useCounter } from '@/composables/useCounter'
@@ -5616,7 +5641,9 @@ onMounted(() => {
   fetchUser(1)
 })
 </script>
+```
 
+```javascript
 // 7. 高级组合模式
 export function useUserWithCounter(userId) {
   // 组合多个composable
@@ -5638,7 +5665,9 @@ export function useUserWithCounter(userId) {
     userActions
   }
 }
+```
 
+```typescript
 // 8. TypeScript支持
 interface User {
   id: number
@@ -5696,7 +5725,8 @@ export function useTypedUser() {
 
 ---
 
-**`Fragment` 在 Vue 3 中是什么？有什么好处？**
+
+### **`Fragment` 在 Vue 3 中是什么？有什么好处？**
 
 Fragment 是 Vue 3 中用于支持组件返回多个根节点的特性。它允许组件模板中不需要额外的包裹元素，减少无意义的 DOM 层级。
 
@@ -5962,11 +5992,15 @@ defineOptions({
 
 ---
 
-**如何处理表单输入与双向绑定复杂场景（自定义 `v-model`）？**
+
+### **如何处理表单输入与双向绑定复杂场景（自定义 `v-model`）？**
 
 ~~在输入型组件如 input、textarea、select 等中使用 v-model 进行双向绑定。~~
 
 ~~对于自定义组件，可以通过 props 和 emits 实现自定义 v-model，简化父子通信。~~
+
+- :modelValue
+- @update:modelValue
 
 ## 深度分析与补充
 
@@ -5985,7 +6019,7 @@ defineOptions({
 - 可以自定义prop名称和事件名称
 
 **实战应用举例：**
-```javascript
+```vue
 // 1. 基础自定义v-model组件
 // CustomInput.vue
 <template>
@@ -6407,7 +6441,8 @@ const performanceTips = [
 
 ---
 
-**`effectScope` 的用途是什么？**
+
+### **`effectScope` 的用途是什么？**
 
 effectScope 用于收集和管理一组响应式副作用（如 watch、computed 等），便于统一停止和释放资源，提升代码的可维护性。
 
@@ -6732,10 +6767,10 @@ const usageScenarios = {
 
 ---
 
-**如何在 Vue 中捕获错误（错误边界）？**
 
-可以通过 app.config.errorHandler 注册全局错误处理函数，捕获运行时异常，实现错误边界。
+### **如何在 Vue 中捕获错误（错误边界）？**
 
+- app.config.errorHandler 注册全局错误处理函数，捕获运行时异常，实现错误边界。
 - onErrorCaptured
 
 ## 深度分析与补充
@@ -6798,7 +6833,9 @@ app.config.warnHandler = (msg, instance, trace) => {
     trace
   })
 }
+```
 
+```vue
 // 2. 错误边界组件
 // ErrorBoundary.vue
 <template>
@@ -6965,7 +7002,9 @@ const reportError = () => {
   color: white;
 }
 </style>
+```
 
+```javascript
 // 3. 异步错误处理Hook
 // useAsyncError.js
 import { ref } from 'vue'
@@ -7240,7 +7279,9 @@ export function useErrorHandler() {
     handleFormError
   }
 }
+```
 
+```vue
 // 7. 完整的应用示例
 // App.vue
 <template>
@@ -7351,9 +7392,10 @@ const errorHandlingStrategies = {
 
 ---
 
-**什么是 `markRaw`？什么时候使用？**
 
-markRaw 用于将对象标记为不可被 Vue 响应式系统代理，返回原始对象。
+### **什么是 `markRaw`？什么时候使用？**
+
+markRaw 用于将对象标记为不可被 Vue 响应式系统代理，返回原始对象。(**标记永远不会被代理**)
 
 适用于不需要响应式的对象（如第三方库实例、大型数据结构等）。
 
@@ -7706,10 +7748,9 @@ const performanceImpact = {
 - 最佳实践：只对确实不需要响应式的数据使用
 
 ----
-## 原题：如何在模板或 setup 中调用父组件方法？
 
-### 原始答案（保留，不作修改）
 
+### **如何在模板或 setup 中调用父组件方法？ **
 1. ~~通过 emits 传递事件方法，子组件调用时传递参数。~~
 2. ~~父组件通过 provide 提供方法，子组件 inject 获取并调用。~~
 
@@ -7721,24 +7762,21 @@ const performanceImpact = {
 问题本质解读： 此问题考察 Vue 3组件间通信机制的理解，特别是子组件向父组件传递数据和调用父组件方法的能力。面试官主要关注候选人对事件系统、依赖注入模式的掌握以及在不同场景下选择合适通信方式的判断力。
 
 技术错误纠正：
-
-• 原答案过于简略，缺少具体的实现细节和语法示例
-• 未说明 emits 的正确声明方式和类型安全
-• 缺少 Composition API 中的具体用法
-• 未提及 defineEmits 和 defineExpose 等 Vue 3 特有的 API
+- 原答案过于简略，缺少具体的实现细节和语法示例
+- 未说明 emits 的正确声明方式和类型安全
+- 缺少 Composition API 中的具体用法
+- 未提及 defineEmits 和 defineExpose 等 Vue 3 特有的 API
 
 知识点系统梳理：
-
-• Vue 3 事件系统：emit/emits 声明、事件监听器
-• 依赖注入：provide/inject 的基本概念和高级用法
-• 组件实例方法暴露：defineExpose 的使用场景
-• 类型安全：TypeScript 中的事件类型定义
-• 性能考虑：避免深层 prop drilling
+- Vue 3 事件系统：emit/emits 声明、事件监听器
+- 依赖注入：provide/inject 的基本概念和高级用法
+- 组件实例方法暴露：defineExpose 的使用场景
+- 类型安全：TypeScript 中的事件类型定义
+- 性能考虑：避免深层 prop drilling
 
 实战应用举例：
 
 ```vue
-
 // 方式1：通过 emits 传递事件（推荐）
 // 父组件
 <template>
@@ -7946,50 +7984,48 @@ const handleSave = (userData: Omit<User, 'id'>) => {
 
 使用场景对比：
 
-• Emits 事件系统：适用于直接的父子组件通信，事件驱动的交互，符合 Vue 的设计哲学
-• Provide/Inject：适用于跨多层级的组件通信，共享状态或服务，避免 prop drilling
-• defineExpose：仅在需要命令式调用子组件方法时使用，不推荐作为主要通信方式
-• 选择建议：优先使用 emits，需要跨层级时使用 provide/inject，避免使用 ref 直接调用
+- Emits 事件系统：适用于直接的父子组件通信，事件驱动的交互，符合 Vue 的设计哲学
+- Provide/Inject：适用于跨多层级的组件通信，共享状态或服务，避免 prop drilling
+- defineExpose：仅在需要命令式调用子组件方法时使用，不推荐作为主要通信方式
+- 选择建议：优先使用 emits，需要跨层级时使用 provide/inject，避免使用 ref 直接调用
 
 记忆要点总结：
 
-• 子调父：优先使用 emit('event-name', data)
-• 事件声明：defineEmits(['event1', 'event2']) 或对象形式验证
-• 跨层级：provide('key', value) + inject('key')
-• 类型安全：使用 TypeScript 定义明确的事件参数类型
-• 最佳实践：事件命名使用 kebab-case，数据单向流动
+- 子调父：优先使用 emit('event-name', data)
+- 事件声明：defineEmits(['event1', 'event2']) 或对象形式验证
+- 跨层级：provide('key', value) + inject('key')
+- 类型安全：使用 TypeScript 定义明确的事件参数类型
+- 最佳实践：事件命名使用 kebab-case，数据单向流动
 
 ----
-## 原题：如何实现跨组件的事件总线（建议方式）？
 
-### 原始答案（保留，不作修改）
+
+### **如何实现跨组件的事件总线（建议方式）？**
 
 推荐通过状态提升到独立的 store（如 Pinia）统一管理，实现跨组件通信和状态同步。
 
 ## 深度分析与补充
 
-问题本质解读： 此问题考察候选人对 Vue 3 应用架构的理解，特别是大型应用中组件通信的最佳实践。面试官关注的是候选人是否理解传统事件总线的问题，以及现代 Vue 3
-应用中推荐的状态管理方案。
+问题本质解读： 此问题考察候选人对 Vue 3 应用架构的理解，特别是大型应用中组件通信的最佳实践。面试官关注的是候选人是否理解传统事件总线的问题，以及现代 Vue 3应用中推荐的状态管理方案。
 
 技术错误纠正：
 
-• 原答案正确但过于简略，缺少具体实现和对比分析
-• 未说明为什么不推荐全局事件总线
-• 缺少 Pinia 的具体使用示例
-• 未提及其他可选方案和适用场景
+- 原答案正确但过于简略，缺少具体实现和对比分析
+- **未说明为什么不推荐全局事件总线**
+- 缺少 Pinia 的具体使用示例
+- 未提及其他可选方案和适用场景
 
 知识点系统梳理：
 
-• Vue 3 中移除了 $bus 的内置支持
-• 状态管理库：Pinia、Vuex 的对比和选择
-• 组合式 API 中的状态共享模式
-• 依赖注入在跨组件通信中的应用
-• 自定义 Composables 的设计原则
+- Vue 3 中移除了 $bus 的内置支持
+- 状态管理库：Pinia、Vuex 的对比和选择
+- 组合式 API 中的状态共享模式
+- 依赖注入在跨组件通信中的应用
+- 自定义 Composables 的设计原则
 
 实战应用举例：
 
 ```javascript
-
 // 方式1：使用 Pinia 进行状态管理（推荐）
 // stores/notification.js
 import { defineStore } from 'pinia'
@@ -8047,7 +8083,9 @@ export const useNotificationStore = defineStore('notification', () => {
     removeNotification
   }
 })
+```
 
+```vue
 // 在组件中使用
 // ComponentA.vue - 发送通知
 <template>
@@ -8137,7 +8175,9 @@ const formatTime = (timestamp) => {
   }).format(timestamp)
 }
 </script>
+```
 
+```javascript
 // 方式2：使用 Composables 进行状态共享
 // composables/useEventBus.js
 import { ref, readonly } from 'vue'
@@ -8212,7 +8252,9 @@ export const useEventBus = () => {
     clear: globalEventBus.clear.bind(globalEventBus)
   }
 }
+```
 
+```vue
 // 在组件中使用事件总线
 // ComponentC.vue
 <script setup>
@@ -8246,7 +8288,9 @@ const triggerEvent = () => {
   eventBus.emit('data:update', { id: 1, name: 'Updated Data' })
 }
 </script>
+```
 
+```javascript
 // 方式3：使用 provide/inject 创建局部事件系统
 // composables/useLocalEventBus.js
 import { inject, provide, reactive } from 'vue'
@@ -8293,7 +8337,9 @@ export const useLocalEventBus = () => {
   }
   return eventBus
 }
+```
 
+```vue
 // 使用局部事件总线
 // ParentComponent.vue
 <template>
@@ -8317,6 +8363,48 @@ eventBus.on('child:action', (data) => {
 })
 </script>
 
+// ChildA.vue
+<template>
+  <button @click="triggerAction">触发行动</button>
+</template>
+
+<script setup>
+import { useLocalEventBus } from '@/composables/useLocalEventBus'
+
+const eventBus = useLocalEventBus()
+
+const triggerAction = () => {
+  eventBus.emit('child:action', { id: 1, name: 'Child A Action' })
+}
+</script>
+
+// ChildB.vue
+<template>
+  <p>收到行动: {{ actionData.name }}</p>
+</template>
+
+<script setup>
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useLocalEventBus } from '@/composables/useLocalEventBus'
+
+const eventBus = useLocalEventBus()
+const actionData = ref(null)
+
+const handleAction = (data) => {
+  actionData.value = data
+}
+
+onMounted(() => {
+  eventBus.on('child:action', handleAction)
+})
+
+onUnmounted(() => {
+  eventBus.off('child:action', handleAction)
+})
+</script>
+```
+
+```javascript
 // 方式4：高级状态管理模式
 // stores/modules/chat.js
 import { defineStore } from 'pinia'
@@ -8411,52 +8499,45 @@ export const useChatStore = defineStore('chat', () => {
 ```
 
 使用场景对比：
-
-• Pinia Store：适用于需要持久化、复杂状态逻辑的全局状态管理
-• Composables EventBus：适用于简单的跨组件事件通信，不需要状态持久化
-• Provide/Inject：适用于组件树内的局部通信，避免全局污染
-• 选择建议：优先使用 Pinia，简单场景用 Composables，避免传统的全局事件总线
+- Pinia Store：适用于需要持久化、复杂状态逻辑的全局状态管理
+- Composables EventBus：适用于简单的跨组件事件通信，不需要状态持久化
+- Provide/Inject：适用于组件树内的局部通信，避免全局污染
+- 选择建议：优先使用 Pinia，简单场景用 Composables，避免传统的全局事件总线
 
 记忆要点总结：
-
-• Vue 3 移除了内置事件总线，推荐使用状态管理库
-• Pinia 是官方推荐的状态管理解决方案，比 Vuex 更简洁
-• 使用 defineStore 创建 store，支持 Composition API 风格
-• 事件总线适合临时通信，状态管理适合持久化数据
-• 组件销毁时记得清理事件监听器，避免内存泄漏
+- Vue 3 移除了内置事件总线，推荐使用状态管理库
+- Pinia 是官方推荐的状态管理解决方案，比 Vuex 更简洁
+- 使用 defineStore 创建 store，支持 Composition API 风格
+- 事件总线适合临时通信，状态管理适合持久化数据
+- 组件销毁时记得清理事件监听器，避免内存泄漏
 
 ----
-## 原题：v-once 有什么作用？什么时候用？
 
-### 原始答案（保留，不作修改）
 
-v-once 只渲染元素和组件一次，后续数据变化不会重新渲染。
+### **v-once 有什么作用？什么时候用？**
 
-适用于静态内容或不需要响应式更新的场景，提升渲染性能。
+- v-once 只渲染元素和组件一次，后续数据变化不会重新渲染。
+- 适用于静态内容或不需要响应式更新的场景，提升渲染性能。
 
 ## 深度分析与补充
 
 问题本质解读： 此问题考察候选人对 Vue 性能优化指令的理解，特别是在什么场景下使用 v-once能够有效提升应用性能。面试官关注候选人是否理解响应式系统的开销，以及如何在保持功能正确性的前提下进行性能优化。
 
 技术错误纠正：
-
-• 原答案基本正确但过于简略，缺少具体的使用场景和注意事项
-• 未说明 v-once 对子组件的影响
-• 缺少与其他性能优化手段的对比
-• 未提及使用时的潜在陷阱和最佳实践
+- 原答案基本正确但过于简略，缺少具体的使用场景和注意事项
+- 未说明 v-once 对子组件的影响
+- 缺少与其他性能优化手段的对比
+- 未提及使用时的潜在陷阱和最佳实践
 
 知识点系统梳理：
-
-• v-once 的工作原理：跳过后续的重新渲染
-• 性能优化：减少不必要的 DOM 操作和组件更新
-• 适用场景：静态内容、昂贵的渲染操作、一次性插值
-• 与其他优化指令的配合：v-memo、v-show/v-if 的选择
-• 潜在问题：数据更新但视图不更新的调试难点
+- v-once 的工作原理：**跳过后续的重新渲染**
+- 性能优化：减少不必要的 DOM 操作和组件更新
+- 适用场景：静态内容、昂贵的渲染操作、一次性插值
+- 与其他优化指令的配合：v-memo、v-show/v-if 的选择
+- 潜在问题：数据更新但视图不更新的调试难点
 
 实战应用举例：
-
 ```vue
-
 <!-- 1. 基础用法：一次性插值 -->
 <template>
   <div>
@@ -8797,53 +8878,45 @@ const incrementCounter = () => {
 ```
 
 使用场景对比：
-
-• 静态内容：页面标题、版本信息、用户基本信息等不会改变的内容
-• 昂贵计算：复杂的数据处理、图表渲染、统计计算等耗时操作
-• 大列表优化：列表项中的静态部分，结合 v-memo 使用效果更佳
-• 一次性组件：配置面板、帮助信息等设置后不需要更新的组件
+- 静态内容：页面标题、版本信息、用户基本信息等不会改变的内容
+- 昂贵计算：复杂的数据处理、图表渲染、统计计算等耗时操作
+- 大列表优化：列表项中的静态部分，结合 v-memo 使用效果更佳
+- 一次性组件：配置面板、帮助信息等设置后不需要更新的组件
 
 记忆要点总结：
-
-• v-once 使元素/组件只渲染一次，后续更新被忽略
-• 主要用于性能优化，减少不必要的重新渲染开销
-• 适合静态内容、昂贵计算、一次性显示的场景
-• 使用时要确保数据确实不需要更新，避免调试困难
-• 可以与 v-memo 配合使用，实现更精细的缓存控制
+- v-once 使元素/组件只渲染一次，后续更新被忽略
+- 主要用于性能优化，减少不必要的重新渲染开销
+- 适合静态内容、昂贵计算、一次性显示的场景
+- 使用时要确保数据确实不需要更新，避免调试困难
+- 可以与 v-memo 配合使用，实现更精细的缓存控制
 
 ----
-## 原题：如何在组件中使用 CSS Modules 或 Scoped CSS？
 
-### 原始答案（保留，不作修改）
 
-在   标签中添加 scoped 属性，实现样式只作用于当前单文件组件。
+### **如何在组件中使用 CSS Modules 或 Scoped CSS？**
 
+在style标签中添加 scoped 属性，实现样式只作用于当前单文件组件。
 使用 CSS Modules 时，通过 module 属性和 :class 绑定实现样式隔离。
 
 ## 深度分析与补充
-
 问题本质解读： 此问题考察候选人对 Vue 单文件组件样式隔离机制的理解，以及在实际项目中如何避免 CSS 样式冲突。面试官关注候选人是否了解不同样式隔离方案的原理、优缺点和适用场景。
 
 技术错误纠正：
-
-• 原答案基本正确但过于简略，缺少具体的语法示例和配置
-• 未说明 Scoped CSS 的工作原理（属性选择器）
-• 缺少 CSS Modules 的完整配置和使用方式
-• 未提及深度选择器、全局样式等高级用法
-• 没有对比两种方案的优缺点和选择建议
+- 原答案基本正确但过于简略，缺少具体的语法示例和配置
+- 未说明 Scoped CSS 的工作原理（属性选择器）
+- 缺少 CSS Modules 的完整配置和使用方式
+- 未提及深度选择器、全局样式等高级用法
+- 没有对比两种方案的优缺点和选择建议
 
 知识点系统梳理：
-
-• Scoped CSS：通过 data-v-hash 属性实现样式隔离
-• CSS Modules：通过类名 hash 化实现样式隔离
-• 深度选择器：::v-deep、:deep() 的使用
-• 全局样式：:global() 选择器的应用
-• 样式传递：组件间样式继承和覆盖策略
+- Scoped CSS：通过 data-v-hash 属性实现样式隔离
+- CSS Modules：通过类名 hash 化实现样式隔离
+- 深度选择器：::v-deep、:deep() 的使用
+- 全局样式：:global() 选择器的应用
+- 样式传递：组件间样式继承和覆盖策略
 
 实战应用举例：
-
 ```vue
-
 <!-- 1. Scoped CSS 基础用法 -->
 <template>
   <div class="user-card">
@@ -9506,19 +9579,17 @@ const getCardStyle = (card) => {
 ```
 
 使用场景对比：
-
-• Scoped CSS：适合大多数组件样式隔离，语法简单，开发效率高
-• CSS Modules：适合需要动态类名、严格样式隔离的场景
-• 深度选择器：修改第三方组件内部样式，谨慎使用避免破坏封装
-• 全局样式：通用样式、重置样式、主题变量等全局生效的样式
+- Scoped CSS：适合大多数组件样式隔离，语法简单，开发效率高
+- CSS Modules：适合需要动态类名、严格样式隔离的场景
+- 深度选择器：修改第三方组件内部样式，谨慎使用避免破坏封装
+- 全局样式：通用样式、重置样式、主题变量等全局生效的样式
 
 记忆要点总结：
-
-• <style scoped> 通过 data-v-hash 属性实现样式隔离
-• <style module> 通过 $style 对象访问 hash 化的类名
-• 深度选择器 :deep() 可以影响子组件样式
-• 动态类名绑定：[className, { conditionalClass: condition }]
-• 样式和逻辑分离：使用计算属性生成动态样式对象
+- <style scoped> 通过 data-v-hash 属性实现样式隔离
+- <style module> 通过 $style 对象访问 hash 化的类名
+- 深度选择器 :deep() 可以影响子组件样式
+- 动态类名绑定：[className, { conditionalClass: condition }]
+- 样式和逻辑分离：使用计算属性生成动态样式对象
 
 ---
 

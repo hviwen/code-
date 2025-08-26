@@ -1,0 +1,13 @@
+/* 浅色模式样式 */
+body {
+  color: #333;
+  background-color: #fff;
+}
+
+/* 深色模式样式 */
+@media (prefers-color-scheme: dark) {
+  body {
+    color: #eee;
+    background-color: #333;
+  }
+}
