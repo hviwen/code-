@@ -1,4 +1,4 @@
-**什么是 `ref`，与 `reactive` 的区别？**
+### **什么是 `ref`，与 `reactive` 的区别？**
 
 ~~Ref是vue中响应式声明的一个函数，它接收一个原始值作为参数，返回一个带有。value的响应式值。这个值在计算时需要使用。value，在模板中可以自动解包。~~
 
@@ -9,14 +9,12 @@
 **问题本质解读：** 这道题考察Vue 3响应式系统的核心概念，面试官想了解你是否理解两种不同的响应式API的适用场景和内部机制。
 
 **技术错误纠正：**
-
 1. 原答案中"带有。value"应为"带有.value"
 2. 缺少重要的类型限制说明和使用场景对比
 
 **知识点系统梳理：**
 
 **ref特点：**
-
 - 用于包装基本类型值（string、number、boolean等）
 - 返回RefImpl对象，通过.value访问真实值
 - 在模板中自动解包，无需.value
@@ -57,11 +55,12 @@ const state = reactive({
 
 ---
 
-**如何创建一个计算属性（computed）？它与 `watch` 的区别是什么？**
+
+### **如何创建一个计算属性（computed）？它与 `watch` 的区别是什么？**
 
 ~~computed 是vue中创建计算属性的函数，它自动返回响应式计算的结果。包含get和set两个内置方法可以定义。set在修改这计算值时使用，get在获取计算值时使用。~~
 
-~~watch时vue中的监听器，他监听一个响应式值的改变，而做出相应的改变。可以在第一次定义时监听，立即；也可以是监听响应式值的内部结构的变化，深度；也可以在实现延迟反应、提前反应。可以接受监听值更新时新旧两个值。~~
+~~watch是vue中的监听器，他监听一个响应式值的改变，而做出相应的改变。可以在第一次定义时监听，立即；也可以是监听响应式值的内部结构的变化，深度；也可以在实现延迟反应、提前反应。可以接受监听值更新时新旧两个值。~~
 
 ~~computed 只是根据多个响应式值变化，做出对应变化后的计算结果。~~
 
@@ -79,13 +78,13 @@ const state = reactive({
 **知识点系统梳理：**
 
 **computed特点：**
-- 基于依赖的缓存计算，只有依赖变化时才重新计算
+- **基于依赖的缓存计算**，只有依赖变化时才重新计算
 - 返回值是响应式的，可以被其他computed或watch依赖
 - 默认只读，可通过get/set定义可写计算属性
 - 同步执行，不能处理异步操作
 
 **watch特点：**
-- 监听响应式数据变化，执行副作用操作
+- **监听响应式数据变化，执行副作用操作**
 - 可以处理异步操作
 - 提供新值和旧值参数
 - 支持immediate、deep、flush等选项
@@ -143,7 +142,8 @@ watch(user, (newUser, oldUser) => {
 
 ---
 
-**`setup()` 的执行时机是什么？能访问 `this` 吗？**
+
+### **`setup()` 的执行时机是什么？能访问 `this` 吗？**
 
 setup() ~~是vue3选项式api结构中的内容~~，可以接受props和上下文对象。在页面创建之初执行。不能访问this，因为组件实例还没有创建
 
@@ -164,7 +164,6 @@ setup() ~~是vue3选项式api结构中的内容~~，可以接受props和上下�
 - 只执行一次
 
 **setup()参数：**
-
 - 第一个参数：props（响应式的）
 - 第二个参数：context对象（包含attrs、slots、emit、expose）
 
@@ -204,7 +203,8 @@ export default {
 
 ---
 
-**如何在 `script setup` 中定义 props 和 emits？**
+
+### **如何在 `script setup` 中定义 props 和 emits？**
 
 可以使用 defineProps 和 defineEmits 中以对象和数组的形式来定义
 
@@ -288,7 +288,8 @@ emit('update', 'new value')
 
 ---
 
-**`v-if` 与 `v-show` 的区别？**
+
+### **`v-if` 与 `v-show` 的区别？**
 
 v-if用于逻辑判断，逻辑为false的组件将不展示。dom不渲染。变换为true时将重新渲染dom
 
@@ -360,7 +361,8 @@ v-show用于组件的展示和隐藏。隐藏时视觉上看不到，但是dom�
 
 ---
 
-**`v-for` 上为什么需要 `key`？如何选择 key？**
+
+### **`v-for` 上为什么需要 `key`？如何选择 key？**
 
 循环相同结构的组件，需要对每个组件标识身份，以提高dom操作的可靠性。~~key要避免是一个对象类型，会被解析成字符串结构。导致每一个key都相同。~~~~key可以是遍历中的顺序编号，或者遍历内容的id。~~
 
@@ -452,7 +454,8 @@ const deleteItem = (id) => {
 
 ---
 
-**如何在父组件向子组件传入回调事件？（基本 props & emit）**
+
+### **如何在父组件向子组件传入回调事件？（基本 props & emit）**
 
 1. 通过 v-on （@）
 2. ~~provide inject~~
@@ -547,7 +550,7 @@ const emitCustomEvent = () => {
 
 ---
 
-**什么是 `provide` / `inject`？有什么使用场景？**
+### **什么是 `provide` / `inject`？有什么使用场景？**
 
 provide 和 inject 是vue中突破祖孙组件数据逐层传递的方式，可以在祖父组件中通过provide传递任意类型的值，在任意子孙组件中通过inject接收。
 
@@ -582,6 +585,7 @@ provide 和 inject 是vue中突破祖孙组件数据逐层传递的方式，可�
   </div>
 </template>
 
+// 祖先组件 ThemeProvider
 <script setup>
 // 主题提供者
 const theme = ref('dark')
@@ -654,15 +658,6 @@ const theme = inject<ThemeContext>('theme')
 </script>
 ```
 
-**常见使用场景：**
-1. **主题系统**: 全局主题配置和切换
-2. **用户认证**: 用户信息和权限管理
-3. **国际化**: 语言包和切换功能
-4. **配置管理**: 全局配置信息
-5. **插件系统**: 插件注册和使用
-6. **表单验证**: 表单上下文和验证规则
-
-**最佳实践：**
 ```javascript
 // 1. 使用Symbol作为key，避免命名冲突
 const ThemeKey = Symbol('theme')
@@ -685,6 +680,14 @@ function useTheme() {
 }
 ```
 
+**常见使用场景：**
+1. **主题系统**: 全局主题配置和切换
+2. **用户认证**: 用户信息和权限管理
+3. **国际化**: 语言包和切换功能
+4. **配置管理**: 全局配置信息
+5. **插件系统**: 插件注册和使用
+6. **表单验证**: 表单上下文和验证规则
+
 **记忆要点总结：**
 - 作用：跨层级组件通信，避免prop drilling
 - 特点：祖先provide，后代inject
@@ -693,7 +696,7 @@ function useTheme() {
 
 ---
 
-**如何创建一个自定义指令（directive）？举例 `v-focus`。**
+### **如何创建一个自定义指令（directive）？举例 `v-focus`。**
 
 ```javascript
 app.directive('focus',{
@@ -796,7 +799,9 @@ export default {
     }
   }
 }
+```
 
+```vue
 // 3. 组合式API中使用
 <script setup>
 // 必须以v开头
@@ -858,7 +863,8 @@ app.directive('scroll', {
 
 ---
 
-**`nextTick` 有什么用途？什么时候使用？**
+
+### **`nextTick` 有什么用途？什么时候使用？**
 
 nextTick() 是DOM更新完成后的回调方法。用于修改数据后计算新的DOM或者操作DOM
 
@@ -931,7 +937,9 @@ export default {
     }
   }
 }
+```
 
+```vue
 // 在组合式API中使用
 <script setup>
 const count = ref(0)
@@ -967,7 +975,8 @@ const increment = async () => {
 
 ---
 
-**`teleport` 的用途是什么？如何使用？**
+
+### **`teleport` 的用途是什么？如何使用？**
 
 ~~teleport用于将内层组件指向外部组件渲染。通常在内层组件布局结构较小，需要展示更大的组件空间时使用。~~
 
@@ -1029,7 +1038,9 @@ const showModal = ref(false)
   max-width: 500px;
 }
 </style>
+```
 
+```vue
 <!-- 通知组件 -->
 <template>
   <div>
@@ -1068,12 +1079,16 @@ const showModal = ref(false)
 <Teleport to="#modals">
   <div class="modal">Modal A</div>
 </Teleport>
+```
 
+```vue
 <!-- 组件B -->
 <Teleport to="#modals">
   <div class="modal">Modal B</div>
 </Teleport>
+```
 
+```html
 <!-- 结果：两个模态框都会渲染到#modals容器中 -->
 <div id="modals">
   <div class="modal">Modal A</div>
@@ -1081,15 +1096,11 @@ const showModal = ref(false)
 </div>
 ```
 
-**常见使用场景：**
-1. **模态框/弹窗**: 避免z-index层级问题
-2. **通知/提示**: 渲染到页面顶层
-3. **下拉菜单**: 避免父容器overflow限制
-4. **全屏组件**: 视频播放器、图片预览
-5. **工具提示**: Tooltip组件
-6. **侧边栏**: 移动端抽屉菜单
-
 **注意事项：**
+- 确保目标容器存在
+- 注意CSS作用域和样式冲突
+- 考虑组件的生命周期和事件冒泡
+- 避免过度使用，保持代码简洁
 ```vue
 <script setup>
 // 1. 确保目标元素存在
@@ -1119,6 +1130,14 @@ onMounted(() => {
 </template>
 ```
 
+**常见使用场景：**
+1. **模态框/弹窗**: 避免z-index层级问题
+2. **通知/提示**: 渲染到页面顶层
+3. **下拉菜单**: 避免父容器overflow限制
+4. **全屏组件**: 视频播放器、图片预览
+5. **工具提示**: Tooltip组件
+6. **侧边栏**: 移动端抽屉菜单
+
 **记忆要点总结：**
 - 作用：将组件渲染到DOM树的其他位置
 - 语法：`<Teleport to="selector">content</Teleport>`
@@ -1127,7 +1146,8 @@ onMounted(() => {
 
 ---
 
-**`Suspense` 组件的基本作用是什么？**
+
+### **`Suspense` 组件的基本作用是什么？**
 
 suspense组件主要是为其内部子组件提供等待显示，当内容子组件内容没有加载完成时为pending状态，显示loading状态。当加载完成后为resolve，显示子组件内容。当子组件加载错误时，状态为rejected，显示fallback 错误提示内容。主要作用为提升交互体验。
 
@@ -1257,7 +1277,8 @@ onErrorCaptured((error, instance, info) => {
 
 ---
 
-**模板中如何使用 `v-model` 在子组件进行双向绑定？**
+
+### **模板中如何使用 `v-model` 在子组件进行双向绑定？**
 
 ~~在输入型组件：input，textarea、radio、select等组件中通过v-model将值绑定，就实现了双向绑定。~~
 
@@ -1392,7 +1413,8 @@ const handleDateChange = (event) => {
 
 ---
 
-**如何在组件中访问模板引用（template refs）？**
+
+### **如何在组件中访问模板引用（template refs）？**
 
 ~~可以通过 useRefs定一个refs，然后通过在组件中ref绑定该值，就可以获取到该组件的实例，就可以通过ref来调用该组件的方法。~~
 
@@ -1547,7 +1569,8 @@ const childRef = ref<InstanceType<typeof ChildComponent> | null>(null)
 
 ---
 
-**`watchEffect` 与 `watch` 的区别？**
+
+### **`watchEffect` 与 `watch` 的区别？**
 
 都是vue中作为监听响应式值变化的函数。
 
@@ -1728,7 +1751,8 @@ watch(count, (newCount) => {
 
 ---
 
-**什么是 `shallowRef` 和 `shallowReactive`？**
+
+### **什么是 `shallowRef` 和 `shallowReactive`？**
 
 shallowRef 是定义浅层响应式原始值
 
@@ -1757,6 +1781,10 @@ shallowReactive 是定义浅层响应式对象
 - 嵌套对象的属性变化不会触发更新
 - 适用于只需要监听对象第一层属性的场景
 - 避免深层代理的性能开销
+
+**手动触发更新：**
+- 对于shallowRef，可以使用triggerRef来强制触发更新
+- 对于shallowReactive，可以重新赋值根级别属性来触发更新
 
 **实战应用举例：**
 ```javascript
@@ -1967,9 +1995,12 @@ const updateMassiveArray = (newArray) => {
 
 ---
 
-**如何将响应式对象解构而不丢失响应性？**
+### **如何将响应式对象解构而不丢失响应性？**
 
 可以在解构时使用 toRef将解构后的内容包装 不会丢失响应式
+- toRef
+- toRefs
+- storeToRefs
 
 ## 深度分析与补充
 
@@ -2281,7 +2312,8 @@ const { count } = toRefs(reactiveObject)
 
 ---
 
-**`isRef`、`unref`、`toRaw` 分别是什么？**
+
+### **`isRef`、`unref`、`toRaw` 分别是什么？**
 
 isRef 判断是否是响应式值
 
@@ -2592,9 +2624,12 @@ function smartUnref(value) {
 
 ---
 
-**如何防止子组件暴露过多内部实现？（组件封装）**
+### **如何防止子组件暴露过多内部实现？（组件封装）**
 
-可以使用Expose()在setup显示暴露方法和属性
+可以使用defineExpose()在setup显式暴露方法和属性
+- 只暴露必要接口
+- 避免暴露内部实现
+- 保持接口稳定性
 
 ## 深度分析与补充
 
@@ -2619,7 +2654,7 @@ function smartUnref(value) {
 - 提供更精确的接口控制
 
 **实战应用举例：**
-```javascript
+```vue
 // 1. 基础的组件封装
 <template>
   <div class="user-card">
@@ -2733,7 +2768,9 @@ defineExpose({
   // formatDate          // 工具方法
 })
 </script>
+```
 
+```vue
 // 2. 复杂组件的分层暴露
 <template>
   <div class="data-table">
