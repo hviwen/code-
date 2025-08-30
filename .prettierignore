@@ -37,7 +37,6 @@ typings/components.d.ts
 Thumbs.db
 
 # Documentation and markdown (optional - remove if you want to format these)
-*.md
 CHANGELOG*
 LICENSE*
 
