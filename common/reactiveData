@@ -1,0 +1,44 @@
+class ReactiveData {
+  constructor(data) {
+    this._data = {}
+    this._watchers = new Map()
+
+    Object.keys(data).forEach(key => {
+      this._data[key] = data[key]
+      this._createReactiveProperty(key)
+    })
+  }
+
+  _createReactiveProperty(key) {
+    let value = this._data[key]
+
+    Object.defineProperty(this, key, {
+      get() {
+        return value
+      },
+      set(newValue) {
+        const oldValue = this._data[key]
+        this._data[key] = newValue
+        this._notify(key, newValue, oldValue)
+      },
+      enumerable: true,
+      configurable: true,
+    })
+  }
+
+  _notify(key, newValue, oldValue) {
+    this._watchers.get(key)?.forEach(callback => callback(newValue, oldValue))
+  }
+
+  watch(key, callback) {
+    if (!this._watchers.has(key)) {
+      this._watchers.set(key, [])
+    }
+    this._watchers.get(key).push(callback)
+  }
+
+  addProperty(key, value) {
+    this._data[key] = value
+    this._createReactiveProperty(key)
+  }
+}

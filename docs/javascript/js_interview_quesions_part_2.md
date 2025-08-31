@@ -7519,14 +7519,15 @@ function uiComponentInheritance() {
 ```javascript
 class Dog {
   static methodA(arr = []) {
-    return this.name + arr.join('_')
+    // return this.name + arr.join('_')
+    return arr.join('_')
   }
   constructor() {
     this.name = ''
   }
 
   methodB(...args) {
-    return methodA(args)
+    return Dog.methodA(args)
   }
 }
 ```
@@ -7953,7 +7954,7 @@ function traditionalPrivateImplementations() {
 
 # **091. [高级]** super关键字的作用和用法
 
-- 实现父属性的超类，调用父属性的方法和属性
+- ~~实现父属性的超类，调用父属性的方法和属性~~ 访问父类的属性和方法
 
 ## 深度分析与补充
 
@@ -8143,8 +8144,8 @@ function superInInheritance() {
   // 测试
   const tesla = new ElectricCar('Tesla', 'Model 3', 2023, 4, 75)
 
-  console.log('Car info:', tesla.getInfo())
-  console.log('Vehicle type:', ElectricCar.getVehicleType())
+  console.log('Car info:', tesla.getInfo()) // Car info: 2023 Tesla Model 3 - 4 doors, Electric
+  console.log('Vehicle type:', ElectricCar.getVehicleType()) // Vehicle type: Generic Vehicle -> Car -> Electric Car
 
   tesla.start().changeGear('D').accelerate(30).accelerate(50).stop()
 }
@@ -8405,10 +8406,10 @@ function classDeclarationVsExpression() {
   const user2 = new UserExpression('Bob')
   const user3 = new UserNamed('Charlie')
 
-  console.log(user1.greet())
-  console.log(user2.greet())
-  console.log(user3.greet())
-  console.log('Named class internal name:', user3.getClassName())
+  console.log(user1.greet()) // Hello, I'm Alice
+  console.log(user2.greet()) // Hi, I'm Bob
+  console.log(user3.greet()) // Hey, I'm Charlie
+  console.log('Named class internal name:', user3.getClassName()) // User
 
   // 提升行为测试
   console.log('Declaration available:', typeof UserDeclaration) // "function"
@@ -8573,7 +8574,7 @@ function practicalClassExpressionUsage() {
   const user = new ValidatedLoggingUser('Bob')
   user.log('User created')
   user.log('User logged in')
-  console.log('User logs:', user.getLogs())
+  console.log('User logs:', user.getLogs()) // [ { message: 'User created', timestamp: '...' }, { message: 'User logged in', timestamp: '...' } ]
 
   // 配置驱动的类
   const ProductClass = createConfigurableClass({
@@ -8616,7 +8617,8 @@ class Count {
   }
 
   set count(value) {
-    this.count = count
+    // this.count = count
+    this.count = value
   }
 
   get count() {
@@ -8801,9 +8803,9 @@ function correctGetterSetter() {
   user.age = 25
   user.lastLogin = new Date()
 
-  console.log('User profile:', user.profile)
-  console.log('Display name:', user.displayName)
-  console.log('Is adult:', user.isAdult)
+  console.log('User profile:', user.profile) // { name: 'John Doe', email: 'john@example.com', age: 25, isAdult: true, lastLogin: ... }
+  console.log('Display name:', user.displayName) // John Doe
+  console.log('Is adult:', user.isAdult) // true
 }
 ```
 
