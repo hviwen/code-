@@ -4281,7 +4281,8 @@ max_size = ${options.logging.maxSize}
 
 ```javascript
 const arr = [5, 2, 8, 3, 12, 100]
-const maxAndMinNum = (arr = []) => `max number is ${Math.max(...arr)}; min number is ${Math.min(...arr)}`
+const maxAndMinNum = (arr = []) =>
+  `max number is ${Math.max(...arr)}; min number is ${Math.min(...arr)}`
 ```
 
 ## 深度分析与补充
@@ -9315,13 +9316,14 @@ class Parent {
 }
 
 class Child extends Parent {
-  constructor(name, firends) {
-    super(name)
-    this.firends = firends
+  constructor(name, age = 0, friends) {
+    super(name, age)
+    this.friends = friends
   }
 
   sayHello() {
-    return `hello~ my friends ${this.firends.join(' ')}`
+    super.sayHello()
+    return `hello~ my friends ${this.friends.join(' ')}`
   }
 }
 
@@ -9709,6 +9711,44 @@ function dataProcessingPipeline() {
 # **096. [中级]** 抽象类在JavaScript中如何模拟？
 
 - 抽象类是一种不能直接被实例化的类，通常包含一个或者多个抽象方法，主要是用作其他类的基类
+
+```javascript
+class Shape {
+  constructor(color) {
+    if (this.constructor === Shape) {
+      throw new Error('抽象类Shape不能被直接实例化')
+    }
+    this.color = color
+  }
+
+  getColor() {
+    return this.color
+  }
+
+  setColor(color) {
+    this.color = color
+  }
+
+  getArea() {
+    throw new Error(`抽象类getArea方法必须在子类中实现`)
+  }
+}
+
+class NShape extends Shape {
+  constructor(color, width, height) {
+    super(color)
+    this.width = width
+    this.height = height
+  }
+
+  getArea() {
+    return this.width * this.height
+  }
+}
+
+const area = new NShape('red', 100, 200)
+area.getArea()
+```
 
 ## 深度分析与补充
 
@@ -10127,44 +10167,6 @@ function advancedAbstractPatterns() {
 - **模板方法**：定义算法骨架，具体步骤由子类实现
 - **Symbol标记**：使用Symbol创建更严格的抽象类检查
 - **实际应用**：数据库抽象层、图形系统、工厂模式、框架设计
-
-```javascript
-class Shape {
-  constructor(color) {
-    if (this.constructor === Shape) {
-      throw new Error('抽象类Shape不能被直接实例化')
-    }
-    this.color = color
-  }
-
-  getColor() {
-    return this.color
-  }
-
-  setColor(color) {
-    this.color = color
-  }
-
-  getArea() {
-    throw new Error(`抽象类getArea方法必须在子类中实现`)
-  }
-}
-
-class NShape extends Shape {
-  constructor(color, width, height) {
-    super(color)
-    this.width = width
-    this.height = height
-  }
-
-  getArea() {
-    return this.width * this.height
-  }
-}
-
-const area = new NShape('red', 100, 200)
-area.getArea()
-```
 
 # **097. [高级]** 类的装饰器（decorator）概念及用法
 
@@ -10720,8 +10722,8 @@ function symbolApplications() {
   console.log('Login attempts:', user.getLoginAttempts())
 
   // 私有属性无法直接访问
-  console.log('User keys:', Object.keys(user))
-  console.log('User symbols:', Object.getOwnPropertySymbols(user))
+  console.log('User keys:', Object.keys(user)) // ['name', 'email']
+  console.log('User symbols:', Object.getOwnPropertySymbols(user)) // [Symbol(private), Symbol(id), Symbol(password), Symbol(email), Symbol(loginAttempts)]
 
   const myClass = new MyClass()
   console.log('Library A:', myClass.callLibraryA())
@@ -10825,9 +10827,9 @@ function symbolCreationMethods() {
   console.log('全局Symbol属性:', config[GLOBAL_CONFIG])
 
   // 属性枚举
-  console.log('普通属性:', Object.keys(config))
-  console.log('Symbol属性:', Object.getOwnPropertySymbols(config))
-  console.log('所有属性:', Reflect.ownKeys(config))
+  console.log('普通属性:', Object.keys(config)) // ['publicSetting']
+  console.log('Symbol属性:', Object.getOwnPropertySymbols(config)) // [Symbol(config), Symbol(global.config)]
+  console.log('所有属性:', Reflect.ownKeys(config)) // ['publicSetting', Symbol(config), Symbol(global.config)]
 }
 ```
 
@@ -11014,18 +11016,18 @@ function symbolPracticalUsage() {
   const sequence = new NumberSequence(1, 10, 2)
   console.log('Number sequence:')
   for (const num of sequence) {
-    console.log(num)
+    console.log(num) // 1, 3, 5, 7, 9
   }
 
   // 测试自定义转换
   const temp = new Temperature(25)
-  console.log('Temperature string:', String(temp))
-  console.log('Temperature number:', Number(temp))
-  console.log('Temperature object tag:', Object.prototype.toString.call(temp))
+  console.log('Temperature string:', String(temp)) // "25°C (77.0°F)"
+  console.log('Temperature number:', Number(temp)) // 25
+  console.log('Temperature object tag:', Object.prototype.toString.call(temp)) // "[object Temperature]"
 
   // 测试枚举
   const status = HTTP_STATUS.OK
-  console.log('Status description:', HTTP_STATUS.getDescription(status))
+  console.log('Status description:', HTTP_STATUS.getDescription(status)) // "OK"
 
   // 测试观察者
   const observable = new Observable()
@@ -11045,7 +11047,7 @@ function symbolPracticalUsage() {
 
 - 可以作为对象的键
 
-**100. [中级]** Symbol.iterator的作用是什么？
+# **100. [中级]** Symbol.iterator的作用是什么？
 
 - 定义一个可迭代对象 结合generator 可以让对象通过forof循环遍历
 
@@ -11158,7 +11160,7 @@ function symbolIteratorBasics() {
 
   // 使用解构赋值
   const [first, second, ...rest] = new SimpleRange(20, 25)
-  console.log('Destructured:', { first, second, rest })
+  console.log('Destructured:', { first, second, rest }) // { first: 20, second: 21, rest: [22, 23, 24] }
 
   // 字符串迭代
   const strIter = new StringIterator('Hello')
@@ -11305,12 +11307,12 @@ function advancedIteratorApplications() {
 
   console.log('Tree depth-first traversal:')
   for (const value of root) {
-    console.log(value)
+    console.log(value) // root, child1, grandchild1, child2
   }
 
   console.log('Tree breadth-first traversal:')
   for (const value of root.breadthFirst()) {
-    console.log(value)
+    console.log(value) // root, child1, child2, grandchild1
   }
 
   // 测试无限序列
@@ -11328,7 +11330,7 @@ function advancedIteratorApplications() {
 
   // 测试链式迭代器
   const chain = new ChainIterator([1, 2, 3], ['a', 'b', 'c'], [true, false])
-  console.log('Chained iteration:', [...chain])
+  console.log('Chained iteration:', [...chain]) // [1, 2, 3, 'a', 'b', 'c', true, false]
 
   // 测试过滤迭代器
   const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
@@ -11361,7 +11363,7 @@ function advancedIteratorApplications() {
 - **实际应用**：自定义数据结构、分页数据、无限序列、树遍历
 - **内置支持**：for...of、解构赋值、扩展运算符都依赖此协议
 
-**101. [高级]** 如何使用Symbol创建对象的私有属性？
+# **101. [高级]** 如何使用Symbol创建对象的私有属性？
 
 ```javascript
 // 创建私有属性的Symbol
@@ -11579,7 +11581,7 @@ function advancedSymbolPrivatePatterns() {
 - **最佳实践**：在模块顶部定义私有Symbol，使用描述性名称便于调试
 - **性能优势**：访问速度快，内存占用少
 
-**102. [中级]** Symbol.for()和Symbol()的区别
+# **102. [中级]** Symbol.for()和Symbol()的区别
 
 - Symbol.for() 接收一个字符串作为参数，并搜索是否已经存在以该字符串定义的Symbol值，如果有则返回这个Symbol值，如果没有就以该字符串创建一个Symbol值并注册到全局。
 - Symbol() 定义一个独一无二的Symbol值
@@ -11819,7 +11821,7 @@ function symbolPracticalApplications() {
 - **实际应用**：事件系统、插件钩子、配置管理、跨模块常量
 - **选择原则**：需要跨模块共享时用Symbol.for()，需要唯一性时用Symbol()
 
-**103. [中级]** 内置Symbol有哪些？举例说明
+# **103. [中级]** 内置Symbol有哪些？举例说明
 
 - Symbol.hasInstance 当其他对象使用`instanceof`运算符，判断是否为该对象的实例时，会调用这个方法
 - Symbol.isConcatSpreadable 连接两个数组时是否展开
@@ -12060,7 +12062,7 @@ function advancedBuiltInSymbols() {
 
 ### Set和Map（8道）
 
-**104. [初级]** Set数据结构的特点和基本用法
+# **104. [初级]** Set数据结构的特点和基本用法
 
 - 存储单个值且不重复
 
@@ -12351,7 +12353,7 @@ function setPracticalApplications() {
 - **遍历方式**：forEach()、for...of、扩展运算符
 - **实际应用**：数组去重、权限管理、标签系统、访客追踪
 
-**105. [中级]** 如何使用Set进行数组去重？
+# **105. [中级]** 如何使用Set进行数组去重？
 
 ```javascript
 let arr = [1, 2, 3, 4, 5, 4, 3, 2, 1, 0, 'a', 'b', 'a', 'c']
@@ -12600,7 +12602,7 @@ function advancedDeduplication() {
 - **高级场景**：需要自定义去重逻辑处理复杂对象
 - **性能优势**：Set去重比传统方法（如filter+indexOf）性能更好
 
-**106. [中级]** Map和Object的区别是什么？
+# **106. [中级]** Map和Object的区别是什么？
 
 - Map 存储键值对，键可以是任意值，不能重复，没有原型链
 
@@ -12907,7 +12909,7 @@ function mapVsObjectApplications() {
 - **迭代顺序**：Map保证插入顺序，Object的数字键会被排序
 - **使用场景**：Map适合缓存、频繁增删，Object适合配置、结构化数据
 
-**107. [中级]** WeakSet和WeakMap的特点和用途
+# **107. [中级]** WeakSet和WeakMap的特点和用途
 
 - WeakSet 成员只能是对象和Symbol值
 - WeakMap 成员键的值只能是对象或者Symbol值
@@ -13211,7 +13213,7 @@ function weakCollectionsApplications() {
 - **内存安全**：自动清理，避免内存泄漏
 - **实际应用**：私有数据存储、DOM元数据、循环引用检测、对象标记
 
-**108. [中级]** 如何遍历Set和Map？
+# **108. [中级]** 如何遍历Set和Map？
 
 - Map/Set .keys() .values() .entries() forEach()
 
@@ -13519,7 +13521,7 @@ function practicalIterationScenarios() {
 - **forEach**：提供回调函数方式，参数顺序不同（Set: value, value, set; Map: value, key, map）
 - **实际应用**：数据分析、转换、缓存管理、配置验证等场景
 
-**109. [高级]** 什么情况下使用WeakMap比Map更合适？
+# **109. [高级]** 什么情况下使用WeakMap比Map更合适？
 
 - WeakMap 的成员键值只能是对象或者Symbol，所以在考虑自动垃圾回收时使用WeakMap比Map更合适
 
@@ -13864,7 +13866,7 @@ function weakMapPracticalScenarios() {
 - **缓存系统**：对象缓存自动清理，无需手动管理
 - **框架应用**：响应式系统、依赖追踪等框架内部实现
 
-**110. [中级]** Map的键可以是什么类型？
+# **110. [中级]** Map的键可以是什么类型？
 
 - 任意类型
 
@@ -14169,7 +14171,7 @@ function mapKeyApplications() {
 - **实际应用**：元数据管理、函数缓存、私有属性、复合键策略
 - **优势体现**：相比Object，Map在键类型方面更加灵活和强大
 
-**111. [中级]** 如何将Map转换为数组？
+# **111. [中级]** 如何将Map转换为数组？
 
 ```javascript
 const myMap = new Map().set(true, 7).set({ foo: 3 }, ['abc'])
@@ -14426,7 +14428,7 @@ function mapToArrayApplications() {
 
 ### 迭代器和生成器（4道）
 
-**112. [中级]** 什么是迭代器？如何自定义迭代器？
+# **112. [中级]** 什么是迭代器？如何自定义迭代器？
 
 内部实现了[Symbol.iterator] 并且可以使用for...of 遍历的就时迭代器
 
@@ -14715,7 +14717,7 @@ function advancedIteratorApplications() {
 - **实际应用**：分页数据、树结构、链式操作、数据过滤
 - **异步迭代**：使用Symbol.asyncIterator实现异步迭代器
 
-**113. [中级]** 生成器函数的语法和特点
+# **113. [中级]** 生成器函数的语法和特点
 
 - [Symbol.iterator]
 - generator
@@ -14985,7 +14987,7 @@ function advancedGeneratorApplications() {
 - **双向通信**：通过next()参数向生成器传递值
 - **实际应用**：无限序列、树遍历、异步处理、状态机、数据流
 
-**114. [高级]** 生成器的实际应用场景有哪些？
+# **114. [高级]** 生成器的实际应用场景有哪些？
 
 ## 深度分析与补充
 
@@ -15122,7 +15124,7 @@ function* stateMachine(initialState = 'idle') {
 - **数据流处理**：处理连续的数据流和批量操作
 - **性能优化**：避免一次性加载大量数据造成的性能问题
 
-**115. [高级]** 如何使用生成器实现无限序列？
+# **115. [高级]** 如何使用生成器实现无限序列？
 
 ## 深度分析与补充
 
