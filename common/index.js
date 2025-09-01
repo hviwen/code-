@@ -120,3 +120,33 @@ class PluginSystem {
     await this.executeHook(PLUGIN_HOOKS.AFTER_INIT, context)
   }
 }
+
+function* fibonaci(){
+  let a = 0,b =1 
+  while(true){
+    yield a
+    [a, b] = [b, a + b]
+  }
+}
+
+function* primeNumbers() {
+  const primes = []
+  let candidate = 2
+
+  while (true) {
+    let isPrime = true
+    for (const prime of primes) {
+      if (prime * prime > candidate) break
+      if (candidate % prime === 0) {
+        isPrime = false
+        break
+      }
+    }
+
+    if (isPrime) {
+      primes.push(candidate)
+      yield candidate
+    }
+    candidate++
+  }
+}
