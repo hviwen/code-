@@ -28,7 +28,7 @@ class TreeNode {
     this.children = []
   }
 
-  addChild(child){
+  addChild(child) {
     this.children.push(child)
     return this
   }
@@ -46,6 +46,19 @@ class TreeNode {
       const node = queue.shift()
       yield node.value
       queue.push(...node.children)
+    }
+  }
+
+  *levelOrder() {
+    const queue = [{ node: this, level: 0 }]
+
+    while (queue.length) {
+      const { node, level } = queue.shift()
+      yield { node: node.value, level }
+
+      node.children.forEach(child=>{
+        queue.push({ node: child, level: level + 1 })
+      })
     }
   }
 }
@@ -66,4 +79,9 @@ for (const value of root) {
 console.log('Tree breadth-first traversal:')
 for (const value of root.breadthFirst()) {
   console.log(value) // root, child1, child2, grandchild
+}
+
+console.log('Tree level-order traversal:')
+for (const value of root.levelOrder()) {
+  console.log(value) // { node: 'root', level: 0 }, { node: 'child1', level: 1 }, { node: 'child2', level: 1 }, { node: 'grandchild', level: 2 }
 }

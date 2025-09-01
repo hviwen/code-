@@ -13217,7 +13217,7 @@ function weakCollectionsApplications() {
 
 # **108. [中级]** 如何遍历Set和Map？
 
-- Map/Set .keys() .values() .entries() forEach()
+- Map/Set .keys() .values() .entries() forEach() for...of
 
 ## 深度分析与补充
 
@@ -14432,15 +14432,11 @@ function mapToArrayApplications() {
 
 # **112. [中级]** 什么是迭代器？如何自定义迭代器？
 
-内部实现了[Symbol.iterator] 并且可以使用for...of 遍历的就时迭代器
+内部实现了[Symbol.iterator] 并且可以使用for...of 遍历的就是迭代器
 
 ## 深度分析与补充
 
 **问题本质解读：** 这道题考察迭代器的概念和自定义实现，面试官想了解你是否理解JavaScript的迭代协议。
-
-**技术错误纠正：**
-
-1. "就时迭代器"应为"就是迭代器"
 
 **知识点系统梳理：**
 
@@ -14723,7 +14719,7 @@ function advancedIteratorApplications() {
 
 - [Symbol.iterator]
 - generator
-- yelled next
+- ~~yelled~~ yield next
 
 ## 深度分析与补充
 
