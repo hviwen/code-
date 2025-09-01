@@ -11828,6 +11828,14 @@ function symbolPracticalApplications() {
 - Symbol.hasInstance 当其他对象使用`instanceof`运算符，判断是否为该对象的实例时，会调用这个方法
 - Symbol.isConcatSpreadable 连接两个数组时是否展开
 - Symbol.species 衍生对象时控制实例的继承对象
+- Symbol.match
+- Symbol.replace
+- Symbol.search
+- Symbol.split
+- Symbol.iterator
+- Symbol.toPrimitive
+- Symbol.toStringTag
+- Symbol.unscopables
 
 ## 深度分析与补充
 
@@ -12053,14 +12061,6 @@ function advancedBuiltInSymbols() {
 - **Symbol.species**：控制衍生对象的构造函数类型
 - **Symbol.toPrimitive**：自定义对象到原始值的转换规则
 - **Symbol.toStringTag**：自定义Object.prototype.toString()的返回值
-- Symbol.match
-- Symbol.replace
-- Symbol.search
-- Symbol.split
-- Symbol.iterator
-- Symbol.toPrimitive
-- Symbol.toStringTag
-- Symbol.unscopables
 
 ### Set和Map（8道）
 
@@ -12070,8 +12070,8 @@ function advancedBuiltInSymbols() {
 
 ```javascript
 let set = new Set(['1', 'a'])
-set.add(2, 3, 5)
-set.size()
+// set.add(2, 3, 5) // 错误写法
+// set.size() // 错误写法 set.size
 set.delete('a')
 set.has('abc')
 set.clear()
@@ -12169,7 +12169,7 @@ function setBasicsAndFeatures() {
   // 使用for...of遍历
   console.log('For...of iteration:')
   for (const value of set2) {
-    console.log(value)
+    console.log(value) // 1, 2, 3, 4, 5
   }
 
   // 清空Set
