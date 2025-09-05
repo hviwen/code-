@@ -1050,8 +1050,10 @@ function withTimeout(promise, timeout) {
 
 # **121. [中级]** Promise.catch()和try-catch的区别
 
-- promise.catch 捕获Promise中异步操作的异常和then中异常
-- 包含在promise外部的try catch 可以捕获promise执行中的异常
+- ~~promise.catch 捕获Promise中异步操作的异常和then中异常~~
+- ~~包含在promise外部的try catch 可以捕获promise执行中的异常~~
+- try-catch 可以**捕获同步代码中的异常**
+- promise.catch 可以**捕获异步代码中的异常**
 
 ## 深度分析与补充
 
@@ -1321,7 +1323,7 @@ function riskyAsyncOperation() {
 # **122. [中级]** 如何处理多个Promise？
 
 - Promise.all([]) 可以通过数组的方式将多个异步操作同时并行请求，只有全部成功才成功，有一个失败都失败。返回全部请求执行结果
-- Promise.race([]) 可以通过数组的方式将多个异步操作同时竞争请求，只有全部失败才都失败，返回最快完成请求的那个结果
+- Promise.race([]) 可以通过数组的方式将多个异步操作同时竞争请求，~~只有全部失败才都失败，返回最快完成请求的那个结果~~ 返回第一个settled的Promise结果
 - Promise.allSettled([]) 可以通过数组的方式将多个异步操作同时并行请求,返回各个请求的结果（结果中包含结果状态和值）
 - Promise.any([]) 可以通过数组的方式将多个异步操作同时竞争请求, 只要有一个请求成功，返回最先成功的那个，只有全部失败的时候才失败
 
@@ -1623,7 +1625,7 @@ function updateUser(id) {
      2. allSettled 不论其中的失败和成功 全部执行
   2. 返回的结果的结构不同：
      1. all 根据数组顺序返回对应顺序的结果
-     2. allSettled 根据数组顺序返回对应顺序的对象内容 包括了完成状态 stuas 和请求结果 value
+     2. allSettled 根据数组顺序返回对应顺序的对象内容 包括了完成状态 status 和请求结果 value
 
 ## 深度分析与补充
 
@@ -1631,7 +1633,6 @@ function updateUser(id) {
 
 **技术错误纠正：**
 
-- "stuas"应该是"status"
 - 需要明确两者在错误处理、返回值结构、使用场景上的具体差异
 
 **知识点系统梳理：**
@@ -2619,7 +2620,12 @@ MyPromise.race = function (promises) {
 
 # **127. [中级]** Promise中的错误传播机制
 
-.catch()
+~~.catch()~~
+
+- 错误会沿着Promise链向下传播，直到被catch捕获
+- catch可以捕获之前链条中的任何错误
+- catch处理后可以返回正常值，恢复Promise链
+- 跳过then的成功回调
 
 ## 深度分析与补充
 
@@ -2707,8 +2713,19 @@ function processUserData(userId) {
 # **128. [初级]** async/await的基本用法
 
 ```javascript
-async function(){
-  await fetch('/get/github/user=pan').then((response)=>response.json())
+try {
+  async function getUserInfo() {
+    const response = await fetch('/get/github/user=pan')
+
+    if (!response.ok) {
+      throw new Error('请求失败')
+    }
+
+    const data = await response.json()
+    return data
+  }
+} catch (error) {
+  console.log(error)
 }
 ```
 
@@ -3126,7 +3143,7 @@ console.log(asyncFunction()) // Promise对象
 
 # **130. [中级]** 如何在async函数中处理错误？
 
-- 在外部包一个try-catch 捕获异常
+- ~~在外部包一个try-catch 捕获异常~~
 
 ## 深度分析与补充
 
@@ -4086,11 +4103,11 @@ class ConcurrencyController {
   async execute(task) {
     return new Promise((resolve, reject) => {
       this.queue.push({ task, resolve, reject })
-      this.process()
+      this._tryProcess()
     })
   }
 
-  async process() {
+  async _tryProcess() {
     if (this.running >= this.limit || this.queue.length === 0) {
       return
     }
@@ -4099,13 +4116,13 @@ class ConcurrencyController {
     const { task, resolve, reject } = this.queue.shift()
 
     try {
-      const result = await task()
+      const result = await Promise.resolve().then(() => task())
       resolve(result)
     } catch (error) {
       reject(error)
     } finally {
       this.running--
-      this.process()
+      if (this.queue.length > 0) this._tryProcess()
     }
   }
 }
@@ -4657,6 +4674,7 @@ const processControlled = async () => {
 
 - 可以单独使用 await
 - 只能在es module中使用
+- 会阻塞其他模块的加载
 
 ## 深度分析与补充
 
@@ -5443,8 +5461,8 @@ const asyncApiMethods = AsyncTransformer.transformObject(apiMethods)
 # **136. [中级]** JavaScript的事件循环机制是什么？
 
 - 单线程：JS单线程一个任务接一个任务执行
-- 宏任务：setTimeout setInteral UI事件 XHR的回调；每次事件循环从宏任务队列中取一个到执行完成
-- 微任务：Promise.then queueMicotask的回调；事件循环中微任务优先于下一个宏任务，会将微任务队列中的全部微任务执行清空，再执行下一个宏任务
+- 宏任务：setTimeout setInterval UI事件 XHR的回调；每次事件循环从宏任务队列中取一个到执行完成
+- 微任务：Promise.then queueMicrotask的回调；事件循环中微任务优先于下一个宏任务，会将微任务队列中的全部微任务执行清空，再执行下一个宏任务
 - 调用栈：存储正在执行的函数帧。同步代码直接进栈，执行完出栈
 - 事件循环：不断重复：从宏任务中取出一个执行，执行完后清空微任务队列，执行渲染，执行下一个宏任务
 
@@ -5473,6 +5491,17 @@ const asyncApiMethods = AsyncTransformer.transformObject(apiMethods)
 2. 调用栈清空后，执行所有微任务
 3. 执行一个宏任务
 4. 重复步骤2-3
+
+```arduino
+循环开始:
+  ├─ 取一个宏任务并执行（比如用户点击或 setTimeout）
+  │    └─ 执行同步代码（可能产生微任务）
+  ├─ 宏任务结束
+  ├─ 清空并执行所有微任务（直到队列为空）
+  ├─ 执行 rAF 回调（若有）
+  ├─ 浏览器渲染/绘制（若需要）
+  └─ 下一轮循环（处理下一个宏任务）
+```
 
 **实战应用举例：**
 
@@ -6141,272 +6170,6 @@ function performanceComparison() {
 }
 ```
 
-**Vue 3框架应用示例：**
-
-```vue
-<template>
-  <div class="task-demo">
-    <div class="controls">
-      <button @click="demonstratePriority">演示任务优先级</button>
-      <button @click="batchUpdate">批量更新演示</button>
-      <button @click="clearResults">清空结果</button>
-    </div>
-
-    <div class="results">
-      <div class="section">
-        <h3>执行顺序</h3>
-        <div class="execution-log">
-          <div
-            v-for="(log, index) in executionLog"
-            :key="index"
-            :class="['log-entry', log.type]"
-          >
-            <span class="order">{{ index + 1 }}.</span>
-            <span class="type">[{{ log.type }}]</span>
-            <span class="message">{{ log.message }}</span>
-            <span class="time">{{ log.timestamp }}ms</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="section">
-        <h3>状态更新</h3>
-        <div class="state-display">
-          <p>计数器: {{ counter }}</p>
-          <p>更新次数: {{ updateCount }}</p>
-          <p>渲染次数: {{ renderCount }}</p>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
-<script setup>
-import { ref, nextTick, onUpdated } from 'vue'
-
-const executionLog = ref([])
-const counter = ref(0)
-const updateCount = ref(0)
-const renderCount = ref(0)
-const startTime = Date.now()
-
-const addLog = (message, type) => {
-  executionLog.value.push({
-    message,
-    type,
-    timestamp: Date.now() - startTime,
-  })
-}
-
-onUpdated(() => {
-  renderCount.value++
-  addLog(`组件重新渲染 (第${renderCount.value}次)`, 'render')
-})
-
-// 演示任务优先级
-const demonstratePriority = () => {
-  addLog('开始演示任务优先级', 'sync')
-
-  // 宏任务
-  setTimeout(() => {
-    addLog('宏任务1: setTimeout', 'macrotask')
-  }, 0)
-
-  setTimeout(() => {
-    addLog('宏任务2: setTimeout', 'macrotask')
-  }, 0)
-
-  // 微任务
-  Promise.resolve().then(() => {
-    addLog('微任务1: Promise.then', 'microtask')
-
-    // 嵌套微任务
-    Promise.resolve().then(() => {
-      addLog('微任务1.1: 嵌套Promise.then', 'microtask')
-    })
-
-    queueMicrotask(() => {
-      addLog('微任务1.2: queueMicrotask', 'microtask')
-    })
-  })
-
-  Promise.resolve().then(() => {
-    addLog('微任务2: Promise.then', 'microtask')
-  })
-
-  // Vue的nextTick（微任务）
-  nextTick(() => {
-    addLog('Vue nextTick执行', 'vue')
-  })
-
-  addLog('同步代码执行完成', 'sync')
-}
-
-// 批量更新演示
-const batchUpdate = async () => {
-  addLog('开始批量更新', 'sync')
-
-  // 同步更新（会触发多次渲染）
-  for (let i = 0; i < 3; i++) {
-    counter.value++
-    updateCount.value++
-    addLog(`同步更新 ${i + 1}`, 'sync')
-  }
-
-  // 微任务中的更新
-  Promise.resolve().then(() => {
-    counter.value += 10
-    updateCount.value++
-    addLog('微任务中更新', 'microtask')
-  })
-
-  // 宏任务中的更新
-  setTimeout(() => {
-    counter.value += 100
-    updateCount.value++
-    addLog('宏任务中更新', 'macrotask')
-  }, 0)
-
-  // 使用nextTick等待DOM更新
-  await nextTick()
-  addLog('DOM更新完成', 'vue')
-}
-
-const clearResults = () => {
-  executionLog.value = []
-  counter.value = 0
-  updateCount.value = 0
-  renderCount.value = 0
-}
-
-// 组合式函数：任务调度器
-const useTaskScheduler = () => {
-  const pendingMicrotasks = ref([])
-  const pendingMacrotasks = ref([])
-
-  const scheduleMicrotask = (task, name) => {
-    pendingMicrotasks.value.push(name)
-    Promise.resolve().then(() => {
-      task()
-      const index = pendingMicrotasks.value.indexOf(name)
-      if (index > -1) {
-        pendingMicrotasks.value.splice(index, 1)
-      }
-    })
-  }
-
-  const scheduleMacrotask = (task, name, delay = 0) => {
-    pendingMacrotasks.value.push(name)
-    setTimeout(() => {
-      task()
-      const index = pendingMacrotasks.value.indexOf(name)
-      if (index > -1) {
-        pendingMacrotasks.value.splice(index, 1)
-      }
-    }, delay)
-  }
-
-  return {
-    pendingMicrotasks,
-    pendingMacrotasks,
-    scheduleMicrotask,
-    scheduleMacrotask,
-  }
-}
-</script>
-
-<style scoped>
-.task-demo {
-  padding: 20px;
-}
-
-.controls {
-  margin-bottom: 20px;
-}
-
-.controls button {
-  margin-right: 10px;
-  padding: 8px 16px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background: #f5f5f5;
-  cursor: pointer;
-}
-
-.controls button:hover {
-  background: #e0e0e0;
-}
-
-.results {
-  display: flex;
-  gap: 20px;
-}
-
-.section {
-  flex: 1;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  padding: 15px;
-}
-
-.execution-log {
-  max-height: 400px;
-  overflow-y: auto;
-  font-family: monospace;
-  font-size: 12px;
-}
-
-.log-entry {
-  padding: 2px 0;
-  display: flex;
-  gap: 8px;
-}
-
-.log-entry.sync {
-  color: #333;
-}
-.log-entry.microtask {
-  color: #1976d2;
-}
-.log-entry.macrotask {
-  color: #f57c00;
-}
-.log-entry.render {
-  color: #4caf50;
-}
-.log-entry.vue {
-  color: #42b883;
-}
-
-.order {
-  width: 25px;
-  font-weight: bold;
-}
-
-.type {
-  width: 80px;
-  font-weight: bold;
-}
-
-.message {
-  flex: 1;
-}
-
-.time {
-  width: 60px;
-  color: #666;
-  font-size: 10px;
-}
-
-.state-display p {
-  margin: 5px 0;
-  padding: 5px;
-  background: #f9f9f9;
-  border-radius: 3px;
-}
-</style>
-```
-
 **任务类型对比表：**
 
 | 特性     | 宏任务              | 微任务                |
@@ -6427,9 +6190,8 @@ const useTaskScheduler = () => {
 
 # **138. [高级]** Promise.resolve()在事件循环中的执行时机
 
-- Promise.resolve()
-  - 如果是单个参数之间运行 属于同步代码 直接执行；
-  - 如果是后续的then方法运行 属于异步代码 是微任务 在某次微任务队列中按照顺序执行
+- ~~如果是单个参数之间运行 属于同步代码 直接执行；~~ Promise.resolve()本身是同步执行的，但其then回调是异步的微任务
+- ~~如果是后续的then方法运行 属于异步代码 是微任务 在某次微任务队列中按照顺序执行~~ 需要区分Promise创建、状态改变和回调执行的不同时机
 
 ## 深度分析与补充
 
@@ -6639,296 +6401,6 @@ function fetchData(key) {
 }
 ```
 
-**Vue 3框架应用示例：**
-
-```vue
-<template>
-  <div class="promise-timing-demo">
-    <div class="controls">
-      <button @click="demonstrateTiming">演示执行时机</button>
-      <button @click="testStateSync">测试状态同步</button>
-      <button @click="clearLogs">清空日志</button>
-    </div>
-
-    <div class="results">
-      <div class="execution-log">
-        <h3>执行日志</h3>
-        <div class="log-container">
-          <div
-            v-for="(log, index) in logs"
-            :key="index"
-            :class="['log-item', log.type]"
-          >
-            <span class="step">{{ log.step }}</span>
-            <span class="type">[{{ log.type }}]</span>
-            <span class="message">{{ log.message }}</span>
-            <span class="time">+{{ log.time }}ms</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="state-panel">
-        <h3>状态面板</h3>
-        <div class="state-item">
-          <label>计数器:</label>
-          <span>{{ counter }}</span>
-        </div>
-        <div class="state-item">
-          <label>状态:</label>
-          <span>{{ status }}</span>
-        </div>
-        <div class="state-item">
-          <label>最后更新:</label>
-          <span>{{ lastUpdate }}</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
-<script setup>
-import { ref, nextTick } from 'vue'
-
-const logs = ref([])
-const counter = ref(0)
-const status = ref('idle')
-const lastUpdate = ref('')
-const startTime = ref(0)
-let stepCounter = 0
-
-const addLog = (message, type = 'sync') => {
-  stepCounter++
-  const currentTime = Date.now()
-  logs.value.push({
-    step: stepCounter,
-    message,
-    type,
-    time: startTime.value ? currentTime - startTime.value : 0,
-  })
-}
-
-// 演示Promise.resolve()执行时机
-const demonstrateTiming = () => {
-  startTime.value = Date.now()
-  stepCounter = 0
-  logs.value = []
-
-  addLog('开始演示Promise.resolve()时机', 'sync')
-
-  // Promise.resolve()同步创建
-  const promise = Promise.resolve('resolved value')
-  addLog('Promise.resolve()已执行（同步）', 'sync')
-
-  // then回调注册（同步）
-  promise.then(value => {
-    addLog(`then回调执行: ${value}`, 'microtask')
-  })
-  addLog('then回调已注册（同步）', 'sync')
-
-  // 多个Promise.resolve()
-  Promise.resolve(1).then(v => addLog(`Promise 1: ${v}`, 'microtask'))
-  Promise.resolve(2).then(v => addLog(`Promise 2: ${v}`, 'microtask'))
-  Promise.resolve(3).then(v => addLog(`Promise 3: ${v}`, 'microtask'))
-
-  // 宏任务对比
-  setTimeout(() => {
-    addLog('setTimeout执行', 'macrotask')
-  }, 0)
-
-  // 嵌套Promise
-  Promise.resolve().then(() => {
-    addLog('外层微任务', 'microtask')
-    Promise.resolve('nested').then(value => {
-      addLog(`嵌套微任务: ${value}`, 'microtask')
-    })
-  })
-
-  addLog('同步代码执行完成', 'sync')
-}
-
-// 测试状态同步
-const testStateSync = async () => {
-  addLog('开始状态同步测试', 'sync')
-  status.value = 'updating'
-
-  // 使用Promise.resolve()确保状态更新的原子性
-  Promise.resolve()
-    .then(() => {
-      counter.value += 1
-      addLog('状态更新1', 'microtask')
-    })
-    .then(() => {
-      counter.value += 2
-      addLog('状态更新2', 'microtask')
-    })
-    .then(() => {
-      counter.value += 3
-      addLog('状态更新3', 'microtask')
-      status.value = 'completed'
-      lastUpdate.value = new Date().toLocaleTimeString()
-    })
-
-  // 对比：直接更新（同步）
-  counter.value += 10
-  addLog('直接同步更新', 'sync')
-
-  // 使用nextTick等待Vue更新
-  await nextTick()
-  addLog('Vue DOM更新完成', 'vue')
-}
-
-const clearLogs = () => {
-  logs.value = []
-  counter.value = 0
-  status.value = 'idle'
-  lastUpdate.value = ''
-  stepCounter = 0
-}
-
-// 组合式函数：Promise时机工具
-const usePromiseTiming = () => {
-  const createTimedPromise = (value, delay = 0) => {
-    const startTime = Date.now()
-
-    if (delay === 0) {
-      // 立即resolved
-      return Promise.resolve(value).then(result => {
-        const endTime = Date.now()
-        console.log(`Promise resolved in ${endTime - startTime}ms`)
-        return result
-      })
-    } else {
-      // 延迟resolved
-      return new Promise(resolve => {
-        setTimeout(() => {
-          const endTime = Date.now()
-          console.log(`Promise resolved in ${endTime - startTime}ms`)
-          resolve(value)
-        }, delay)
-      })
-    }
-  }
-
-  const batchPromiseResolve = values => {
-    return Promise.resolve()
-      .then(() => {
-        console.log('批量处理开始')
-        return Promise.all(values.map(value => Promise.resolve(value)))
-      })
-      .then(results => {
-        console.log('批量处理完成')
-        return results
-      })
-  }
-
-  return {
-    createTimedPromise,
-    batchPromiseResolve,
-  }
-}
-</script>
-
-<style scoped>
-.promise-timing-demo {
-  padding: 20px;
-}
-
-.controls {
-  margin-bottom: 20px;
-}
-
-.controls button {
-  margin-right: 10px;
-  padding: 8px 16px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background: #f5f5f5;
-  cursor: pointer;
-}
-
-.controls button:hover {
-  background: #e0e0e0;
-}
-
-.results {
-  display: flex;
-  gap: 20px;
-}
-
-.execution-log {
-  flex: 2;
-}
-
-.state-panel {
-  flex: 1;
-  border: 1px solid #ddd;
-  border-radius: 5px;
-  padding: 15px;
-}
-
-.log-container {
-  max-height: 400px;
-  overflow-y: auto;
-  border: 1px solid #ddd;
-  padding: 10px;
-  font-family: monospace;
-  font-size: 12px;
-}
-
-.log-item {
-  padding: 2px 0;
-  display: flex;
-  gap: 8px;
-}
-
-.log-item.sync {
-  color: #333;
-}
-.log-item.microtask {
-  color: #1976d2;
-}
-.log-item.macrotask {
-  color: #f57c00;
-}
-.log-item.vue {
-  color: #42b883;
-}
-
-.step {
-  width: 25px;
-  font-weight: bold;
-}
-
-.type {
-  width: 80px;
-  font-weight: bold;
-}
-
-.message {
-  flex: 1;
-}
-
-.time {
-  width: 60px;
-  color: #666;
-  font-size: 10px;
-}
-
-.state-item {
-  display: flex;
-  justify-content: space-between;
-  margin: 8px 0;
-  padding: 5px;
-  background: #f9f9f9;
-  border-radius: 3px;
-}
-
-.state-item label {
-  font-weight: bold;
-}
-</style>
-```
-
 **执行时机总结：**
 
 | 操作              | 执行时机       | 说明                          |
@@ -7030,8 +6502,8 @@ function complexNestingDemo() {
 
 # **140. [高级]** 如何理解事件循环的执行栈、任务队列和微任务队列？
 
-- 宏任务：setTimeout setInteral UI事件 XHR的回调；每次事件循环从宏任务队列中取一个到执行完成
-- 微任务：Promise.then queueMicotask的回调；事件循环中微任务优先于下一个宏任务，会将微任务队列中的全部微任务执行清空，再执行下一个宏任务
+- 宏任务：setTimeout setInterval UI事件 XHR的回调；每次事件循环从宏任务队列中取一个到执行完成
+- 微任务：Promise.then queueMicrotask的回调；事件循环中微任务优先于下一个宏任务，会将微任务队列中的全部微任务执行清空，再执行下一个宏任务
 - 调用栈：存储正在执行的函数帧。同步代码直接进栈，执行完出栈
 - 事件循环：不断重复：从宏任务中取出一个执行，执行完后清空微任务队列，执行渲染，执行下一个宏任务
 
@@ -7593,17 +7065,17 @@ if (!cache.has('expensive-data')) {
 // === ES6模块在Vue 3中的应用 ===
 
 // composables/useCounter.js - 组合式函数
-import { ref, computed } from 'vue';
+import { ref, computed } from 'vue'
 
 export function useCounter(initialValue = 0) {
-  const count = ref(initialValue);
+  const count = ref(initialValue)
 
-  const increment = () => count.value++;
-  const decrement = () => count.value--;
-  const reset = () => count.value = initialValue;
+  const increment = () => count.value++
+  const decrement = () => count.value--
+  const reset = () => (count.value = initialValue)
 
-  const isEven = computed(() => count.value % 2 === 0);
-  const isPositive = computed(() => count.value > 0);
+  const isEven = computed(() => count.value % 2 === 0)
+  const isPositive = computed(() => count.value > 0)
 
   return {
     count,
@@ -7611,10 +7083,12 @@ export function useCounter(initialValue = 0) {
     decrement,
     reset,
     isEven,
-    isPositive
-  };
+    isPositive,
+  }
 }
+```
 
+```vue
 // components/Counter.vue
 <template>
   <div class="counter">
@@ -7628,62 +7102,58 @@ export function useCounter(initialValue = 0) {
 
 <script setup>
 // ES6模块导入组合式函数
-import { useCounter } from '@/composables/useCounter.js';
+import { useCounter } from '@/composables/useCounter.js'
 
-const {
-  count,
-  increment,
-  decrement,
-  reset,
-  isEven
-} = useCounter(10);
+const { count, increment, decrement, reset, isEven } = useCounter(10)
 </script>
+```
 
+```javascript
 // utils/api.js - API工具模块
-import axios from 'axios';
+import axios from 'axios'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
-  timeout: 10000
-});
+  timeout: 10000,
+})
 
 // 命名导出
-export const get = (url, config) => api.get(url, config);
-export const post = (url, data, config) => api.post(url, data, config);
-export const put = (url, data, config) => api.put(url, data, config);
-export const del = (url, config) => api.delete(url, config);
+export const get = (url, config) => api.get(url, config)
+export const post = (url, data, config) => api.post(url, data, config)
+export const put = (url, data, config) => api.put(url, data, config)
+export const del = (url, config) => api.delete(url, config)
 
 // 默认导出
-export default api;
+export default api
 
 // stores/user.js - Pinia状态管理
-import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
-import { get, post } from '@/utils/api.js';
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import { get, post } from '@/utils/api.js'
 
 export const useUserStore = defineStore('user', () => {
-  const user = ref(null);
-  const token = ref(localStorage.getItem('token'));
+  const user = ref(null)
+  const token = ref(localStorage.getItem('token'))
 
-  const isLoggedIn = computed(() => !!token.value);
-  const userName = computed(() => user.value?.name || '游客');
+  const isLoggedIn = computed(() => !!token.value)
+  const userName = computed(() => user.value?.name || '游客')
 
-  const login = async (credentials) => {
+  const login = async credentials => {
     try {
-      const response = await post('/auth/login', credentials);
-      token.value = response.data.token;
-      user.value = response.data.user;
-      localStorage.setItem('token', token.value);
+      const response = await post('/auth/login', credentials)
+      token.value = response.data.token
+      user.value = response.data.user
+      localStorage.setItem('token', token.value)
     } catch (error) {
-      throw new Error('登录失败');
+      throw new Error('登录失败')
     }
-  };
+  }
 
   const logout = () => {
-    token.value = null;
-    user.value = null;
-    localStorage.removeItem('token');
-  };
+    token.value = null
+    user.value = null
+    localStorage.removeItem('token')
+  }
 
   return {
     user,
@@ -7691,57 +7161,57 @@ export const useUserStore = defineStore('user', () => {
     isLoggedIn,
     userName,
     login,
-    logout
-  };
-});
+    logout,
+  }
+})
 
 // === Node.js中的CommonJS应用 ===
 
 // config/database.js
-const mongoose = require('mongoose');
+const mongoose = require('mongoose')
 
 const connectDB = async () => {
   try {
     const conn = await mongoose.connect(process.env.MONGO_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-    });
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
+    })
+    console.log(`MongoDB Connected: ${conn.connection.host}`)
   } catch (error) {
-    console.error(error);
-    process.exit(1);
+    console.error(error)
+    process.exit(1)
   }
-};
+}
 
-module.exports = connectDB;
+module.exports = connectDB
 
 // middleware/auth.js
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const jwt = require('jsonwebtoken')
+const User = require('../models/User')
 
 const auth = async (req, res, next) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    const token = req.header('Authorization')?.replace('Bearer ', '')
 
     if (!token) {
-      return res.status(401).json({ message: '无访问权限' });
+      return res.status(401).json({ message: '无访问权限' })
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET)
+    const user = await User.findById(decoded.id)
 
     if (!user) {
-      return res.status(401).json({ message: '用户不存在' });
+      return res.status(401).json({ message: '用户不存在' })
     }
 
-    req.user = user;
-    next();
+    req.user = user
+    next()
   } catch (error) {
-    res.status(401).json({ message: '无效的token' });
+    res.status(401).json({ message: '无效的token' })
   }
-};
+}
 
-module.exports = auth;
+module.exports = auth
 ```
 
 **核心差异对比表：**
@@ -7772,7 +7242,7 @@ module.exports = auth;
 
 - import Xxx from './xxx.js' 导入类或者函数； 需要在文件中导出 export default Xxx
 - import {a,b,c} from './xxx.js' 导入多个方法； 在文件中可以定义多个导出内容 export const a = 1； export function b(){}
-- import \* as from './xxx.js'
+- import \* as moduleName from './xxx.js' 导入整个模块并重新命名
 - import './style.js'
 - export {Xxx} from './xxx.js'
 
@@ -8116,7 +7586,9 @@ app.mount('#app')
 
 # **143. [中级]** 动态import()的用法和应用场景
 
-- cosnt MyComponent = await import('./xxx.js')
+```javascript
+const MyComponent = await import('./xxx.js')
+```
 
 ## 深度分析与补充
 
@@ -8688,7 +8160,11 @@ const loadFeatureModule = async featureName => {
 
 # **144. [高级]** 模块的循环依赖问题如何解决？
 
--
+- 依赖注入
+- 事件驱动
+- 延迟导入
+- 接口抽象
+- 模块聚合器
 
 ## 深度分析与补充
 
@@ -8992,6 +8468,39 @@ export class UserService extends IUserService {
   }
 }
 
+// activityService.js
+import { IActivityLogger } from './interfaces.js'
+import { IUserService } from './interfaces.js'
+
+export class ActivityLogger extends IActivityLogger {
+  constructor(userService = null) {
+    super()
+    this.userService = userService
+  }
+
+  setUserService(userService) {
+    this.userService = userService
+  }
+
+  log(action, userId) {
+    const user = this.userService?.getUser(userId)
+    console.log(`Activity: ${action} for user ${user?.name || 'Unknown'}`)
+  }
+}
+
+// main.js - 组装依赖
+import { UserService } from './userService.js'
+import { ActivityLogger } from './activityService.js'
+
+const userService = new UserService()
+const activityLogger = new ActivityLogger()
+
+// 设置相互依赖
+userService.setActivityLogger(activityLogger)
+activityLogger.setUserService(userService)
+
+export { userService, activityLogger }
+
 // 6. 解决方案5：模块聚合器
 
 // services/index.js - 统一服务入口
@@ -9111,7 +8620,8 @@ console.log('检测到的循环依赖:', cycles)
 
 # **145. [中级]** Tree-shaking的原理是什么？
 
-- tree-shaking 将没有引用但是没有实际使用的组件剔除（或者注释），以减轻包体积和提高代码编译速度
+- tree-shaking 将没有引用但是没有实际使用的组件移除，以减轻包体积和提高代码编译速度
+- es6模块静态结构是tree-shaking的基础
 
 ## 深度分析与补充
 
@@ -9509,21 +9019,21 @@ module.exports = {
 
 ```javascript
 const obj = {
-  a:1,
-  b:[2,3,4],
-  c:'hello',
-  d:true,
-  e:{x:Symbol('x'),y:new Date()},
-  f:(x)=>`${x}`,
+  a: 1,
+  b: [2, 3, 4],
+  c: 'hello',
+  d: true,
+  e: { x: Symbol('x'), y: new Date() },
+  f: x => `${x}`,
 }
 
-const proxy = new Proxy(obj,{
-  get:(target,propKey,receiver){
-  return Reflcet.get(target,propKey,receiver)
-	}
-  set:(target,propKey,receiver){
-    return Reflcet.set(target,propKey,receiver)
-  }
+const proxy = new Proxy(obj, {
+  get(target, propKey, receiver) {
+    return Reflect.get(target, propKey, receiver)
+  },
+  set(target, propKey, value, receiver) {
+    return Reflect.set(target, propKey, value, receiver)
+  },
 })
 ```
 
@@ -9786,6 +9296,14 @@ class ObservableObject {
     }
   }
 }
+
+const obj = new ObservableObject({ a: 1, b: 2 })
+obj.on('a', (newValue, oldValue, property) => {
+  console.log(`Property ${property} changed from ${oldValue} to ${newValue}`)
+})
+obj.a = 10
+obj.b = 20
+
 
 // 8. 单例模式代理
 function createSingleton(constructor) {
@@ -10164,7 +9682,7 @@ const obj = {
   }
 }
 
-const e2 = obj?.a?.b?.c?.e?[2]
+const e2 = obj?.a?.b?.c?.e?.[2]
 const foo = obj?.a?.b?.c?.f
 obj?.a?.b?.c?.f?.(3)
 ```

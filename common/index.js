@@ -121,11 +121,11 @@ class PluginSystem {
   }
 }
 
-function* fibonaci(){
-  let a = 0,b =1 
-  while(true){
-    yield a
-    [a, b] = [b, a + b]
+function* fibonaci() {
+  let a = 0,
+    b = 1
+  while (true) {
+    yield (a[(a, b)] = [b, a + b])
   }
 }
 
@@ -148,5 +148,75 @@ function* primeNumbers() {
       yield candidate
     }
     candidate++
+  }
+}
+
+export async function smartRetry(operation, maxRetries = 3) {
+  const attempts = Array.from({ length: maxRetries }, (_, i) => {
+    return new Promise(resolve => {
+      setTimeout(() => {
+        operation()
+          .then(resolve)
+          .catch(error => resolve(Promise.reject(error)))
+      }, i * 1000)
+    })
+  })
+
+  try {
+    return await Promise.any(attempts)
+  } catch (error) {
+    throw new Error(`Operation failed after ${maxRetries} attempts`)
+  }
+}
+
+export function withTimeout(promise, timeout = 5000, timeoutMessage = 'Operation timed out') {
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error(timeoutMessage)), timeout)
+  })
+
+  return Promise.race([promise, timeoutPromise])
+}
+
+export function cancelableRequest(url, options = {}) {
+  const controller = new AbortController()
+  const { timeout = 5000 } = options
+
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => {
+      controller.abort()
+      reject(new Error('Request canceled'))
+    }, timeout)
+  })
+
+  const requestPromise = fetch(url, {
+    ...options,
+    signal: controller.signal,
+  })
+
+  return Promise.race([requestPromise, timeoutPromise])
+}
+
+export function asyncGenertorToAsync(generatorFunction) {
+  return function (...args) {
+    const generator = generatorFunction.apply(this, args)
+
+    return new Promise((resolve, reject) => {
+      function step(method, arg) {
+        try {
+          const result = generator[method](arg)
+          if (result.done) {
+            resolve(result.value)
+          } else {
+            Promise.resolve(result.value).then(
+              value => step('next', value),
+              error => step('throw', error),
+            )
+          }
+        } catch (error) {
+          reject(error)
+        }
+      }
+      step('next')
+    })
   }
 }
