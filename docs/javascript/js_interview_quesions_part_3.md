@@ -112,13 +112,6 @@ fetchData()
   })
 ```
 
-**Promise的核心特性：**
-
-1. **状态不可逆**：pending → fulfilled/rejected，状态一旦改变就不会再变
-2. **链式调用**：每个then方法返回新的Promise，支持链式操作
-3. **错误传播**：错误会沿着Promise链向下传播，直到被catch捕获
-4. **值传递**：resolve的值会传递给下一个then的回调函数
-
 **Vue 3框架应用示例：**
 
 ```vue
@@ -202,6 +195,13 @@ onMounted(() => {
 </script>
 ```
 
+**Promise的核心特性：**
+
+1. **状态不可逆**：pending → fulfilled/rejected，状态一旦改变就不会再变
+2. **链式调用**：每个then方法返回新的Promise，支持链式操作
+3. **错误传播**：错误会沿着Promise链向下传播，直到被catch捕获
+4. **值传递**：resolve的值会传递给下一个then的回调函数
+
 **记忆要点总结：**
 
 - Promise是异步编程的解决方案，解决回调地狱问题
@@ -213,8 +213,8 @@ onMounted(() => {
 # **117. [初级]** Promise有哪几种状态？
 
 - pending 等待
-- fulfilled 执行成功的原因
-- rejected 执行拒绝的理由
+- fulfilled ~~执行成功的原因~~ 已成功
+- rejected ~~执行拒绝的理由~~ 已拒绝
 
 ## 深度分析与补充
 
@@ -359,8 +359,13 @@ console.log('5')
 
 # **118. [中级]** 如何创建一个Promise？
 
-- new Promise
-- Promise()
+- new Promise(executeor)
+- Promise.resolve(value)
+- Promise.reject(reason)
+- Promise.all(iterable)
+- Promise.race(iterable)
+- Promise.allSettled(iterable)
+- Promise.any(iterable)
 
 ## 深度分析与补充
 
@@ -541,8 +546,8 @@ const safePromise = new Promise((resolve, reject) => {
 
 # **119. [中级]** Promise.then()方法的用法
 
-- pormise.then() 参数是一个执行器方法，返回一个promise.thenable。
-- 通常为：(resolve,reject) =>{ 执行成功的resolve 或者失败的reject }
+- pormise.then() 参数是一个~~执行器方法~~ 回调函数，接收onFulfilled和onRejected两个回调函数，返回一个~~promise.thenable~~ 新的promise。
+- ~~通常为：(resolve,reject) =>{ 执行成功的resolve 或者失败的reject }~~
 - 当执行器函数只有一个参数时，默认为：resolve
 
 ## 深度分析与补充
@@ -763,7 +768,8 @@ function processData(data) {
 
 # **120. [中级]** Promise的链式调用如何工作？
 
-- 通过返回一个promise的thenable 在下一个then中接收到上一个then的结果，继续执行下一步的操作
+- 通过返回一个~~promise的thenable~~新的promise对象 在下一个then中接收到上一个then的结果，继续执行下一步的操作
+- 核心是Promise的状态传递和值转换机制
 
 ## 深度分析与补充
 
