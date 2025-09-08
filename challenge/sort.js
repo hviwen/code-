@@ -90,3 +90,59 @@ function mergeSort(arr) {
     return result;
   }
 }
+
+function heapSort(arr) {
+  const heapSize = arr.length;
+
+  for (let rooIndex = Math.floor(n / 2) - 1; rooIndex >= 0; rooIndex--) {
+    heapify(arr, heapSize, rootIndex);
+  }
+
+  for (let i = n - 1; i > 0; i--) {
+    [arr[0], arr[i]] = [arr[i], arr[0]];
+    heapify(arr, i, 0);
+  }
+
+  return arr;
+
+  function heapify(arr, heapSize, rootIndex) {
+    let largest = rooIndex;
+    const leftChild = 0;
+    const rightChild = 0;
+
+    if (leftChild < heapSize && arr[leftChild] > arr[largest]) {
+      largest = leftChild;
+    }
+
+    if (rightChild < heapSize && arr[rightChild] > arr[largest]) {
+      largest = rightChild;
+    }
+
+    if (heapSize !== largest) {
+      [arr[rightChild], arr[largest]] = [arr[largest], arr[rightChild]];
+      heapify(arr, heapSize, largest);
+    }
+  }
+}
+
+function countSort(arr) {
+  const maxValue = Math.max(...arr);
+  const minValue = Math.min(...arr);
+  const range = maxValue - minValue + 1;
+
+  const counts = Array(range).fill(0);
+  const result = [];
+
+  for (let i = 0; i < arr.length; i++) {
+    counts[arr[i] - minValue]++;
+  }
+
+  for (let i = 0; i < counts.length; i++) {
+    while (counts[i] > 0) {
+      result.push(i + minValue);
+      counts[i]--;
+    }
+  }
+
+  return result;
+}
