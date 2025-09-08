@@ -116,6 +116,73 @@ function mergeSort(arr) {
   }
 }
 
+/**
+ * 堆排序
+ * @param  {*[]} arr
+ * @returns {[]|*}
+ */
+function heapSort(arr) {
+  const n = arr.length
+
+  // 构建堆
+  for (let i = Math.floor(n / 2) - 1; i >= 0; i--) {
+    heapify(arr, n, i)
+  }
+
+  // 排序
+  for (let i = n - 1; i > 0; i--) {
+    ;[arr[0], arr[i]] = [arr[i], arr[0]]
+    heapify(arr, i, 0)
+  }
+
+  return arr
+
+  function heapify(arr, heapSize, rootIndex) {
+    let largest = rootIndex
+    const leftChild = 2 * rootIndex + 1
+    const rightChild = 2 * rootIndex + 2
+
+    if (leftChild < heapSize && arr[leftChild] > arr[largest]) {
+      largest = leftChild
+    }
+
+    if (rightChild < heapSize && arr[rightChild] > arr[largest]) {
+      largest = rightChild
+    }
+
+    if (largest !== heapSize) {
+      ;[arr[rightChild], arr[largest]] = [arr[largest], arr[rightChild]]
+      heapify(arr, heapSize, largest)
+    }
+  }
+}
+
+/**
+ * 计数排序
+ * @param arr
+ * @returns {[]}
+ */
+function countSort(arr) {
+  const maxValue = Math.max(...arr)
+  const minValue = Math.min(...arr)
+  const range = maxValue - minValue + 1
+
+  const counts = Array(range).fill(0)
+  const result = []
+
+  for (let i = 0; i < arr.length; i++) {
+    counts[arr[i] - minValue]++
+  }
+
+  for (let i = 0; i < counts.length; i++) {
+    while (counts[i] > 0) {
+      result.push(i + minValue)
+      counts[i]--
+    }
+  }
+  return result
+}
+
 const arr = Array.from({ length: 100 }, () => Math.floor(Math.random() * 100))
 console.log('origin arr :', arr)
 const now = performance.now()
@@ -133,3 +200,11 @@ console.log('insertSort time :', performance.now() - now2)
 const now3 = performance.now()
 console.log(mergeSort(arr))
 console.log('mergeSort time :', performance.now() - now3)
+
+const now4 = performance.now()
+console.log(heapSort(arr))
+console.log('heapSort time :', performance.now() - now4)
+
+const now5 = performance.now()
+console.log(countSort(arr))
+console.log('countSort time :', performance.now() - now5)
