@@ -44,10 +44,6 @@ const trigger = (target, key) => {
   })
 }
 
-function hasOwn(target, p) {
-  return Object.prototype.hasOwnProperty.call(target, p)
-}
-
 const ITERATE_KEY = Symbol('iterate')
 
 function reactive(target) {
@@ -89,8 +85,8 @@ function reactive(target) {
       return Reflect.has(target, key)
     },
 
-    deleteProperty(target: *, p: string | symbol): boolean {
-      const hadKey = hasOwn(target, p)
+    deleteProperty(target, p) {
+      const hadKey = Object.hasOwn(target, p)
       const result = Reflect.deleteProperty(target, p)
       if (hadKey) {
         trigger(target, p, undefined, target[p])
@@ -98,7 +94,7 @@ function reactive(target) {
       return result
     },
 
-    ownKeys(target: *): ArrayLike<string | symbol> {
+    ownKeys(target){
       track(target, Array.isArray(target) ? 'length' : ITERATE_KEY)
       return Reflect.ownKeys(target)
     }

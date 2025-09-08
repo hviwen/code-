@@ -2,5 +2,9 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "prettier.prettierPath": "./node_modules/prettier",
     "prettier.requireConfig": true,
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "sonarlint.connectedMode.project": {
+        "connectionId": "hviwen",
+        "projectKey": "hviwen_code-"
+    }
 }

@@ -1,4 +1,4 @@
-class BNode {
+export class BNode {
   constructor(key) {
     this.key = key
     this.left = null
@@ -22,18 +22,10 @@ class BinarySearchTree {
 
   insertNode(node, newNode) {
     if (newNode.key < node.key) {
-      if (node.left === null) {
-        node.left = newNode
-      } else {
-        this.insertNode(node.left, newNode)
-      }
-    } else {
-      if (node.right === null) {
-        node.right = newNode
-      } else {
-        this.insertNode(node.right, newNode)
-      }
-    }
+      if (!node.left) node.left = newNode
+      else this.insertNode(node.left, newNode)
+    } else if (!node.right) node.right = newNode
+      else this.insertNode(node.right, newNode)
   }
 
   search(node, key) {
