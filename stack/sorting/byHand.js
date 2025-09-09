@@ -24,8 +24,9 @@ function quickSort(arr) {
  * @returns {[]|*}
  */
 function bubbleSort(arr) {
-  for (let i = 0; i < arr.length; i++) {
-    for (let j = 0; j < arr.length - i - 1; j++) {
+  const n = arr.length - 1
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n - 1; j++) {
       if (arr[j] > arr[j + 1]) {
         ;[arr[j], arr[j + 1]] = [arr[j + 1], arr[j]]
       }
@@ -122,11 +123,11 @@ function mergeSort(arr) {
  * @returns {[]|*}
  */
 function heapSort(arr) {
-  const n = arr.length
+  const heapSize = arr.length
 
   // 构建堆
-  for (let i = Math.floor(n / 2) - 1; i >= 0; i--) {
-    heapify(arr, n, i)
+  for (let rootIndex = Math.floor(n / 2) - 1; rootIndex >= 0; rootIndex--) {
+    heapify(arr, heapSize, rootIndex)
   }
 
   // 排序
@@ -150,8 +151,8 @@ function heapSort(arr) {
       largest = rightChild
     }
 
-    if (largest !== heapSize) {
-      ;[arr[rightChild], arr[largest]] = [arr[largest], arr[rightChild]]
+    if (largest !== rootIndex) {
+      ;[arr[rootIndex], arr[largest]] = [arr[largest], arr[rootIndex]]
       heapify(arr, heapSize, largest)
     }
   }
