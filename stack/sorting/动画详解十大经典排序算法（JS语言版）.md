@@ -7,8 +7,7 @@
 由于待排序的元素数量不同，使得排序过程中涉及的存储器不同，可将排序方法分为两类：一类是**内部排序**，指的是待排序列存放在计算机随机存储器中进行的排序过程；另一类是**外部排序**，指的是待排序的元素的数量很大，以致内存一次不能容纳全部记录，在排序过程中尚需对外存进行访问的排序过程。
 
 我们可以将常见的**内部排序算法**可以分成两类：
-
-![](https://blog.fite先将整个待排序列分割成若干个子序列分别进行直接插入排序，待整个序列中的记录"基本有序"时，再对全体记录进行一次直接插入排序。n.top/2019/sorting-algorithm/sort-category.png)
+先将整个待排序列分割成若干个子序列分别进行直接插入排序，待整个序列中的记录"基本有序"时，再对全体记录进行一次直接插入排序。
 
 **比较类排序**：通过比较来决定元素间的相对次序，时间复杂度为 O(nlogn)～O(n²)。属于比较类的有：
 
@@ -225,16 +224,9 @@ function quickSortMedianOfThree(arr) {
   // 三者取中法选择基准
   const first = arr[0]
   const middle = arr[Math.floor(arr.length / 2)]
-  const last = arr[arr.length - 1]
-
-  let pivot
-  if ((first >= middle && first <= last) || (first >= last && first <= middle)) {
-    pivot = first
-  } else if ((middle >= first && middle <= last) || (middle >= last && middle <= first)) {
-    pivot = middle
-  } else {
-    pivot = last
-  }
+  const middle = arr[arr.length - 1]
+  const baseKey = [first, middle, middle]
+  const pivot = Math.sum(...baseKey) - Math.max(...baseKey) - Math.min(...baseKey)
 
   const left = []
   const right = []
