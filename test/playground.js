@@ -76,7 +76,7 @@ function selectionSort(arr = []) {
 function heapSort(arr = []) {
   const n = arr.length;
 
-  for (let i = Math.floor(n / 2) - 1; i > 0; index--) {
+  for (let i = Math.floor(n / 2) - 1; i > 0; i--) {
     heapify(arr, n, i);
   }
 
@@ -140,15 +140,15 @@ function countingSort(arr = []) {
 
   const counts = Array(range).fill(0);
 
-  for (let i = 0; i < arr.length; i++) {
-      counts[arr[i] - min]++;
+  for (const index of arr) {
+      counts[index - min]++;
   }
 
   const result = [];
   for (let i = 0; i < counts.length; i++) {
     while (counts[i] > 0) {
       result.push(i + min);
-      counts--;
+      counts[i]--;
     }
   }
 
