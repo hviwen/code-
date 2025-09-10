@@ -22,17 +22,17 @@ function bubbleSort(arr = []) {
 
 function quickSort(arr = []) {
   if (arr.length <= 1) return arr;
-  const n = arr.length - 1;
+  const n = arr.length;
 
-  const proive = arr[Math.floor(n / 2)];
+  const pivot = arr[Math.floor(n / 2)];
   const left = [];
   const middle = [];
   const right = [];
 
   for (let i = 0; i < n; i++) {
-    if (arr[i] < proive) {
+    if (arr[i] < pivot) {
       left.push(arr[i]);
-    } else if (arr[i] === proive) {
+    } else if (arr[i] === pivot) {
       middle.push(arr[i]);
     } else {
       right.push(arr[i]);
@@ -67,7 +67,7 @@ function selectionSort(arr = []) {
       }
     }
     if (arr[i] !== arr[miniIndex]) {
-      [arr[i], arr[miniIndex]] = [arr[miniIndex], arrr[i]];
+      [arr[i], arr[miniIndex]] = [arr[miniIndex], arr[i]];
     }
   }
   return arr;
@@ -76,13 +76,13 @@ function selectionSort(arr = []) {
 function heapSort(arr = []) {
   const n = arr.length;
 
-  for (let i = Math.floor(n / 2) - 1; index > 0; index--) {
+  for (let i = Math.floor(n / 2) - 1; i > 0; index--) {
     heapify(arr, n, i);
   }
 
   for (let i = n - 1; i > 0; i--) {
     [arr[i], arr[0]] = [arr[0], arr[i]];
-    heapify(arr, n, 0);
+    heapify(arr, i, 0);
   }
 
   return arr;
@@ -100,8 +100,8 @@ function heapSort(arr = []) {
       largest = childRight;
     }
 
-    if (largest !== heapSize) {
-      [arr[largest], arr[heapSize]] = [arr[heapSize], arr[largest]];
+    if (largest !== rootIndex) {
+      [arr[largest], arr[rootIndex]] = [arr[rootIndex], arr[largest]];
       heapify(arr, heapSize, largest);
     }
   }
@@ -111,8 +111,8 @@ function mergeSort(arr = []) {
   if (arr.length <= 1) return arr;
 
   const mid = Math.floor(arr.length / 2);
-  const left = arr.slice(0, mid);
-  const right = arr.slice(mid);
+  const left = mergeSort(arr.slice(0, mid));
+  const right = mergeSort(arr.slice(mid));
 
   return mergify(left, right);
 
@@ -141,15 +141,13 @@ function countingSort(arr = []) {
   const counts = Array(range).fill(0);
 
   for (let i = 0; i < arr.length; i++) {
-    if (arr[i] > 0) {
       counts[arr[i] - min]++;
-    }
   }
 
   const result = [];
   for (let i = 0; i < counts.length; i++) {
     while (counts[i] > 0) {
-      result.push(counts[i] + min);
+      result.push(i + min);
       counts--;
     }
   }
