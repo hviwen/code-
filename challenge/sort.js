@@ -13,20 +13,6 @@ function bubbleSort(arr) {
   return arr;
 }
 
-// Quick Sort - O(n log n) average, O(n²) worst
-function quickSort(arr) {
-  if (arr.length <= 1) return arr;
-  const pivot = arr[Math.floor(arr.length / 2)]; // Better pivot selection
-  const left = [], right = [];
-  
-  for (let i = 0; i < arr.length; i++) {
-    if (i === Math.floor(arr.length / 2)) continue; // Skip pivot
-    if (arr[i] < pivot) left.push(arr[i]);
-    else right.push(arr[i]);
-  }
-  return [...quickSort(left), pivot, ...quickSort(right)];
-}
-
 // Selection Sort - O(n²)
 function selectionSort(arr) {
   const n = arr.length;
@@ -57,6 +43,21 @@ function insertionSort(arr) {
   }
   return arr;
 }
+
+// Quick Sort - O(n log n) average, O(n²) worst
+function quickSort(arr) {
+  if (arr.length <= 1) return arr;
+  const pivot = arr[Math.floor(arr.length / 2)]; // Better pivot selection
+  const left = [], right = [];
+  
+  for (let i = 0; i < arr.length; i++) {
+    if (i === Math.floor(arr.length / 2)) continue; // Skip pivot
+    if (arr[i] < pivot) left.push(arr[i]);
+    else right.push(arr[i]);
+  }
+  return [...quickSort(left), pivot, ...quickSort(right)];
+}
+
 
 // Merge Sort - O(n log n)
 function mergeSort(arr) {
