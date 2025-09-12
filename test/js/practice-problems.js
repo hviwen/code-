@@ -581,3 +581,102 @@ function frequencySort(arr) {
   return result.flat(Infinity)
 }
 
+/*
+### 27. 时间转换
+**描述**：将时间从 24 小时制转换为 12 小时制。
+
+**输入**：24 小时制格式的字符串时间 "HH:MM"
+**输出**：12 小时制格式的字符串时间 "H:MM A.M./P.M."
+
+**示例**：
+```javascript
+timeConverter("12:30") // 返回 "12:30 P.M."
+timeConverter("09:00") // 返回 "9:00 A.M."
+timeConverter("23:15") // 返回 "11:15 P.M."
+```*/
+function timeConverter(time) {
+  let [h, m] = time.split(':').map(i => parseInt(i))
+  if (h >= 24 || h < 0) return
+  if (h >= 0 && h < 12) return `${h}:${m} A.M.`
+  if (h === 12) return `${h}:${m} P.M.`
+  h = h - 12
+  return `${h}:${m} P.M.`
+}
+
+/*
+### 28. 非唯一元素
+**描述**：从数组中移除所有唯一元素，只保留出现多次的元素。
+- 应保留原始顺序。
+
+**输入**：数组
+**输出**：数组
+
+**示例**：
+```javascript
+nonUniqueElements([1, 2, 3, 1, 3]) // 返回 [1, 3, 1, 3]
+nonUniqueElements([1, 2, 3, 4, 5]) // 返回 []
+nonUniqueElements([5, 5, 5, 5, 5]) // 返回 [5, 5, 5, 5, 5]
+```*/
+function nonUniqueElements(arr = []) {
+  const map = new Map()
+
+  for (const i of arr) {
+    if (!map.has(i)) {
+      map.set(i, 1)
+    } else {
+      let count = map.get(i)
+      map.set(i, ++count)
+    }
+  }
+  const baseFilter = []
+  map.forEach((key, value) => {
+    if (key === 1) {
+      baseFilter.push(value)
+    }
+  })
+  return arr.filter(i => !baseFilter.includes(i))
+}
+
+/*
+### 29. 日期转换
+**描述**：将日期从 "YYYY-MM-DD" 格式转换为 "DD.MM.YYYY" 格式。
+
+**输入**："YYYY-MM-DD" 格式的字符串日期
+**输出**："DD.MM.YYYY" 格式的字符串日期
+
+**示例**：
+```javascript
+dateConverter("2021-01-15") // 返回 "15.01.2021"
+dateConverter("1970-12-31") // 返回 "31.12.1970"
+```*/
+function dateConverter(time) {
+  const [y, m, d] = time.split('-')
+  return `${d}.${m}.${y}`
+}
+
+/*
+### 30. 最频繁元素
+**描述**：在数组中找到出现频率最高的元素。
+- 如果有多个元素具有相同的最高频率，则返回最先遇到的元素。
+
+**输入**：数组
+**输出**：任意数据类型
+
+**示例**：
+```javascript
+mostFrequent([3, 1, 3, 1, 1]) // 返回 1
+mostFrequent(["a", "b", "c", "a", "b", "a"]) // 返回 "a"
+```*/
+function mostFrequent(arr) {
+  let map = new Map()
+  for (const i of arr) {
+    if (!map.has(i)) {
+      map.set(i, 1)
+    } else {
+      let count = map.get(i)
+      map.set(i, ++count)
+    }
+  }
+  map = Array.from(map.entries()).sort((a, b) => b[1] - a[1])
+  return map[0][0]
+}
