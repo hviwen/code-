@@ -1096,3 +1096,224 @@ function isValid(str) {
     .map(i => Number(i))
   return allKeys.reduce((prev, current) => prev + current, 0) === 0
 }
+
+/*
+### 45. Unix 匹配
+**描述**：检查字符串是否匹配 Unix 风格的模式。
+- '*' 匹配任何字符序列
+- '?' 匹配任何单个字符
+
+**输入**：字符串，模式
+**输出**：布尔值
+
+**示例**：
+```javascript
+unixMatch("somefile.txt", "*") // 返回 true
+unixMatch("somefile.txt", "*.txt") // 返回 true
+unixMatch("1name.txt", "?name.txt") // 返回 true
+unixMatch("1name.txt", "?name.???") // 返回 true
+```*/
+function unixMatch(str, pattern) {
+  const regexStr = pattern.replaceAll('.', '\\.').replaceAll('*', '.*').replaceAll('?', '.')
+  const regex = new RegExp(`^${regexStr}$`)
+  return regex.test(str)
+}
+
+/*
+### 46. 寻找岛屿
+**描述**：计算二维网格中岛屿的数量。
+- 岛屿被水包围，由水平或垂直相邻的陆地组成。
+- 1 表示陆地，0 表示水。
+
+**输入**：由 0 和 1 组成的二维数组
+**输出**：数字
+
+**示例**：
+```javascript
+countIslands([
+  [0, 1, 0, 0],
+  [1, 1, 1, 0],
+  [0, 1, 0, 0],
+  [1, 0, 0, 1]
+]) // 返回 3
+```*/
+function countIslands(arr) {
+  const result = []
+  const m = arr.length
+  const n = arr[0].length
+
+  const dfs = (column, row) => {
+    if (column < 0 || row < 0 || column >= m || row >= n) return
+    if (arr[column][row] !== 1) return
+    arr[column][row] = -1
+    dfs(column - 1, row)
+    dfs(column + 1, row)
+    dfs(column, row - 1)
+    dfs(column, row + 1)
+  }
+
+  for (let column = 0; column < m; column++) {
+    for (let row = 0; row < n; row++) {
+      const current = arr[column][row]
+      if (current === 1) {
+        result.push(current)
+        dfs(column, row)
+      }
+    }
+  }
+  return result.length
+}
+
+/*
+### 47. 罗马数字转整数
+**描述**：将罗马数字转换为整数。
+- 有效的罗马数字包括：I, V, X, L, C, D, M
+- 值：I = 1, V = 5, X = 10, L = 50, C = 100, D = 500, M = 1000
+  - 特殊情况：IV = 4, IX = 9, XL = 40, XC = 90, CD = 400, CM = 900
+
+  **输入**：字符串 (罗马数字, 1-15 个字符)
+**输出**：数字
+
+**示例**：
+```javascript
+romanToInt("III") // 返回 3
+romanToInt("IV") // 返回 4
+romanToInt("LVIII") // 返回 58
+romanToInt("MCMXCIV") // 返回 1994
+```*/
+function romanToInt(romanText) {
+  const rObj = {
+    I: 1,
+    V: 5,
+    X: 10,
+    L: 50,
+    C: 100,
+    D: 500,
+    M: 1000,
+  }
+  const leftGen = { I: ['V', 'X'], X: ['L', 'C'], C: ['D', 'M'] }
+  const sumMap = new Map()
+
+  const rts = romanText.split('').map(i => `${i}`.toUpperCase())
+  for (let i = 0; i < rts.length; i++) {
+    const rKey = rts[i]
+    if (sumMap.size !== 0) {
+      const { key: prevKey, value } = sumMap.get(i - 1)
+      if (prevKey !== rKey) {
+        if (Object.hasOwn(leftGen, prevKey) && leftGen[prevKey].includes(rKey)) {
+          sumMap.set(i, { key: rKey, value: rObj[rKey] - value * 2 })
+        } else {
+          sumMap.set(i, { key: rKey, value: rObj[rKey] })
+        }
+      } else {
+        sumMap.set(i, { key: rKey, value: rObj[rKey] })
+      }
+    } else {
+      sumMap.set(i, { key: rKey, value: rObj[rKey] })
+    }
+  }
+  let result = 0
+  sumMap.forEach(({ key, value }) => {
+    result += value
+  })
+  return result
+}
+
+/*
+### 48. 整数转罗马数字
+**描述**：将整数转换为罗马数字。
+- 有效范围：1 到 3999
+
+**输入**：数字 (1-3999)
+**输出**：字符串 (罗马数字)
+
+**示例**：
+```javascript
+intToRoman(3) // 返回 "III"
+intToRoman(4) // 返回 "IV"
+intToRoman(58) // 返回 "LVIII"
+intToRoman(1994) // 返回 "MCMXCIV"
+```*/
+function intToRoman(num) {
+  if (typeof num !== 'number' || num < 0 || num > 3999) return
+  const values = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1]
+  const syms = ['M', 'CM', 'D', 'CD', 'C', 'XC', 'L', 'XL', 'X', 'IX', 'V', 'IV', 'I']
+
+  let res = ''
+  for (let i = 0; i < values.length; i++) {
+    while (num > values[i]) {
+      num -= values[i]
+      res += syms[i]
+    }
+    if (num === 0) break
+  }
+
+  return res
+}
+
+/*
+### 49. 字谜分组
+**描述**：将字符串数组中的字谜分组。
+- 字谜是通过重新排列另一个单词的字母而形成的单词。
+
+**输入**：字符串数组
+**输出**：字符串数组的数组
+
+**示例**：
+```javascript
+groupAnagrams(["eat", "tea", "tan", "ate", "nat", "bat"])
+// 返回 [["eat", "tea", "ate"], ["tan", "nat"], ["bat"]]
+```*/
+function groupAnagrams(arr) {
+  const bwns = Array.from({ length: 26 }, (_, i) => i + 1)
+  const wns = 'abcdefghijklmnopqrstuvwxyz'.split('')
+
+  arr.map(i => `${i}`.toLowerCase())
+  const map = new Map()
+  for (const item of arr) {
+    const itemSum = `${item}`.split('').reduce((prev, current) => {
+      return prev + bwns[wns.indexOf(current)]
+    }, 0)
+    map.set(item, itemSum)
+  }
+  const resMap = new Map()
+  const result = []
+  map.forEach((key, value) => {
+    if (!resMap.has(key)) {
+      resMap.set(key, [value])
+    } else {
+      const saveKeys = resMap.get(key) || []
+      saveKeys.push(value)
+      resMap.set(key, saveKeys)
+    }
+  })
+  resMap.values().forEach(item => {
+    result.push(item)
+  })
+
+  return result
+}
+
+/*
+### 50. 查找所有重复项
+**描述**：在数组中找出所有重复项。
+- 每个元素出现一次或两次。
+
+**输入**：数字数组
+**输出**：数字数组
+
+**示例**：
+```javascript
+findDuplicates([4,3,2,7,8,2,3,1]) // 返回 [2, 3]
+findDuplicates([1,1,2]) // 返回 [1]
+```*/
+function findDuplicates(arr) {
+  arr.sort((a, b) => a - b)
+  const result = []
+  for (let i = 0; i < arr.length - 1; i++) {
+    if (arr[i + 1] - arr[i] === 0) {
+      result.push(arr[i + 1])
+    }
+  }
+  return result
+}
