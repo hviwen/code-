@@ -296,10 +296,134 @@ rotateImage([
 //  [9, 6, 3]
 //]
 ```*/
-function rotateImage(arr){
-  if(arr.length === 0) return []
-  const _arr = [...arr]
+function rotateImage(arr) {
+  if (arr.length === 0) return []
+  const tempArr = Array.from({ length: arr.length }, () => new Array(arr.length).fill(null))
 
+  const len = arr.length
+  for (let i = 0; i < len; i++) {
+    let rotateIndex = len - 1
+    for (let j = 0; j < len; j++) {
+      tempArr[j][rotateIndex - i] = arr[i][j]
+    }
+  }
 
+  return tempArr
+}
 
+/*
+### 60. 查找第一个和最后一个位置
+**描述**：在有序数组中查找给定目标值的起始和结束位置。
+- 如果找不到目标，则返回 [-1, -1]。
+
+**输入**：有序数组，目标值
+**输出**：数组 [第一个位置, 最后一个位置]
+
+**示例**：
+```javascript
+searchRange([5, 7, 7, 8, 8, 10], 8) // 返回 [3, 4]
+searchRange([5, 7, 7, 8, 8, 10], 6) // 返回 [-1, -1]
+```*/
+function searchRange(arr, target) {
+  return [arr.findIndex(i => i === target), arr.findLastIndex(i => i === target)]
+}
+
+/*
+### 61. 盛最多水的容器
+**描述**：给定 n 个非负整数表示每个宽度为 1 的柱子的高度，找出两条线与 x 轴共同构成的容器，使其能够容纳最多的水。
+
+**输入**：高度数组
+**输出**：数字 (最大容水量)
+
+**示例**：
+```javascript
+maxArea([1, 8, 6, 2, 5, 4, 8, 3, 7]) // 返回 49
+maxArea([1, 1]) // 返回 1
+```*/
+function maxArea(arr) {
+  let maxSize = 0
+  let left = 0
+  let right = arr.length - 1
+
+  while (left < right) {
+    const currentHeight = Math.min(arr[left], arr[right])
+    const currentSize = (right - left) * currentHeight
+    maxSize = Math.max(maxSize, currentSize)
+    if (arr[left] < arr[right]) {
+      left++
+    } else {
+      right--
+    }
+  }
+
+  return maxSize
+}
+
+/*
+### 62. 缺失的第一个正数
+**描述**：找出数组中缺失的最小正整数。
+- 算法应该在 O(n) 时间内运行并使用 O(1) 额外空间。
+
+**输入**：整数数组
+**输出**：数字
+
+**示例**：
+```javascript
+firstMissingPositive([1, 2, 0]) // 返回 3
+firstMissingPositive([3, 4, -1, 1]) // 返回 2
+firstMissingPositive([7, 8, 9, 11, 12]) // 返回 1
+```*/
+function firstMissingPositive(nums) {
+  const n = nums.length
+  // 原地把值 x 放到下标 x-1
+  for (let i = 0; i < n; i++) {
+    while (nums[i] >= 1 && nums[i] <= n && nums[nums[i] - 1] !== nums[i]) {
+      const targetIdx = nums[i] - 1
+      // 交换 nums[i] 和 nums[targetIdx]
+      ;[nums[i], nums[targetIdx]] = [nums[targetIdx], nums[i]]
+    }
+  }
+
+  // 找到第一个不在正确位置的下标
+  for (let i = 0; i < n; i++) {
+    if (nums[i] !== i + 1) return i + 1
+  }
+  return n + 1
+}
+
+/*
+### 63. 最长回文子串
+**描述**：找出字符串中最长的回文子串。
+- 回文是指正序和倒序读都相同的字符串。
+
+**输入**：字符串 (1-1000 个字符)
+**输出**：字符串
+
+**示例**：
+```javascript
+longestPalindrome("babad") // 返回 "bab" 或 "aba"
+longestPalindrome("cbbd") // 返回 "bb"
+```*/
+function longestPalindrome(str) {
+  if (str.length === 1) return str
+
+  const result = []
+  let record = str[0]
+
+  for (let i = 1; i < str.length; i++) {
+    const char = str[i]
+    if (record.includes(char)) {
+      const rIndex = record.indexOf(char)
+      console.log('rIndex >>', rIndex)
+      const reverseStr = str.slice(rIndex, i).split('').reverse().join('')
+      const recordStr = record.slice(rIndex)
+
+      if (reverseStr === recordStr) {
+        result.push(reverseStr)
+      }
+    }
+    record += char
+  }
+
+  return result
 }
