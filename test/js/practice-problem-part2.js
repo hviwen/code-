@@ -414,9 +414,12 @@ function longestPalindrome(str) {
     const char = str[i]
     if (record.includes(char)) {
       const rIndex = record.indexOf(char)
-      console.log('rIndex >>', rIndex)
-      const reverseStr = str.slice(rIndex, i).split('').reverse().join('')
-      const recordStr = record.slice(rIndex)
+      const reverseStr = str
+        .slice(rIndex, i + 1)
+        .split('')
+        .reverse()
+        .join('')
+      const recordStr = record.slice(rIndex) + char
 
       if (reverseStr === recordStr) {
         result.push(reverseStr)
@@ -424,6 +427,187 @@ function longestPalindrome(str) {
     }
     record += char
   }
+  result.sort((a, b) => b.length - a.length)
+
+  return result[0]
+}
+
+/*
+### 65. 组合总和
+**描述**：找出数组中所有和等于目标值的唯一组合。
+- 每个数字可以使用多次。
+
+**输入**：不同整数数组，目标整数
+**输出**：数组的数组
+
+**示例**：
+```javascript
+combinationSum([2, 3, 6, 7], 7) // 返回 [[2, 2, 3], [7]]
+combinationSum([2, 3, 5], 8) // 返回 [[2, 2, 2, 2], [2, 3, 3], [3, 5]]
+```*/
+function combinationSum(arr, num) {
+  if (arr.every(i => i > num)) return []
+  const sortArr = [...arr].sort((a, b) => a - b)
+  const result = []
+
+  for (let i = 0; i < sortArr.length; i++) {
+    const diff = num % sortArr[i]
+    const len = Math.floor(num / sortArr[i])
+    if (diff === 0) {
+      result.push(Array.from({ length: len }).fill(sortArr[i]))
+    } else {
+      if (sortArr.includes(diff)) {
+        const comb = [diff, ...Array.from({ length: len }).fill(sortArr[i])]
+        result.push(comb)
+      } else if (sortArr.includes(len)) {
+        const comb = [...Array.from({ length: len - 1 }).fill(sortArr[i]), len]
+        const sum = comb.reduce((prev, curr) => prev + curr, 0)
+        if (sum === num) {
+          result.push(comb)
+        }
+      } else {
+        continue
+      }
+    }
+  }
 
   return result
+}
+
+/*
+### 66. 字符串相乘
+**描述**：将两个表示为字符串的非负整数相乘。
+- 数字可以任意大。
+- 不要使用内置的大整数库或直接将输入转换为整数。
+
+**输入**：两个字符串
+**输出**：字符串
+
+**示例**：
+```javascript
+multiply("2", "3") // 返回 "6"
+multiply("123", "456") // 返回 "56088"
+```*/
+function multiply(n, m) {
+  if (n === '0' || m === '0') return '0'
+  const nLen = n.length
+  const mLen = m.length
+
+  const numArr = Array.from({ length: nLen + mLen }).fill(0)
+  for (let i = nLen - 1; i >= 0; i--) {
+    for (let j = mLen - 1; j >= 0; j--) {
+      const mul = (m[i] - '0') * (n[j] - '0')
+      const sum = numArr[i + j + 1] + mul
+      numArr[i + j + 1] = sum % 10
+      numArr[i + j] += Math.floor(sum / 10)
+    }
+  }
+
+  const index = numArr.findIndex(i => i !== 0)
+  return numArr.slice(index).join('')
+}
+
+/*
+### 67. 有效数字
+**描述**：验证一个字符串是否为有效数字。
+- 有效数字可以是：整数、小数、科学计数法。
+- 示例格式："0"、"-0.1"、"2e10"、"-90E3" 等。
+- 无效格式："abc"、"1a"、"1e"、"e3"、"99e2.5"、"--6" 等。
+
+**输入**：字符串
+**输出**：布尔值
+
+**示例**：
+```javascript
+isNumber("0") // 返回 true
+isNumber("e") // 返回 false
+isNumber("0.1") // 返回 true
+isNumber(".1") // 返回 true
+isNumber("3.") // 返回 true
+```*/
+function isNumber(str) {
+  return Number.isNaN(Number(str))
+}
+
+/*
+### 68. 简化路径
+**描述**：简化 Unix 风格的文件路径。
+- 以斜杠 '/' 开头
+- 任何包含 '.' 的组件被忽略
+- 任何包含 '..' 的组件导致前一个组件被忽略
+- 多个连续的斜杠被视为单个斜杠
+
+**输入**：字符串路径
+**输出**：字符串简化路径
+
+**示例**：
+```javascript
+simplifyPath("/home/") // 返回 "/home"
+simplifyPath("/../") // 返回 "/"
+simplifyPath("/home//foo/") // 返回 "/home/foo"
+```*/
+function simplifyPath(path) {
+  if (!path.startsWith('/')) {
+    path = '/' + path
+  }
+  if (path.endsWith('/')) {
+    path = path.substring(0, path.length - 1)
+  }
+  let _path = ''
+  for (let i = 0; i < path.length; i++) {
+    if (path[i] === '.' || (path[i] === '/' && _path.at(-1) === '/')) {
+      continue
+    } else {
+      _path += path[i]
+    }
+  }
+
+  return _path
+}
+
+/*
+### 69. LRU 缓存
+**描述**：实现具有 get 和 put 操作的最近最少使用（LRU）缓存。
+- get(key)：如果键存在，则返回键的值，否则返回 -1。
+- put(key, value)：设置或插入值。当缓存达到其容量时，淘汰最近最少使用的键。
+
+**输入**：操作和值
+**输出**：操作结果
+
+**示例**：
+```javascript
+const lruCache = new LRUCache(2);
+lruCache.put(1, 1); // 缓存是 {1=1}
+lruCache.put(2, 2); // 缓存是 {1=1, 2=2}
+lruCache.get(1);    // 返回 1
+lruCache.put(3, 3); // 淘汰键 2，缓存是 {1=1, 3=3}
+lruCache.get(2);    // 返回 -1 (未找到)
+```*/
+class LRUCache {
+  constructor(count) {
+    this.count = count
+    this.map = new Map()
+    this.stack = []
+  }
+
+  put(key, value) {
+    if (this.map.size < this.count) {
+      this.map.set(key, value)
+      this.stack.push(key)
+    } else {
+      const head = this.stack.shift()
+      this.map.delete(head)
+      this.map.set(key, value)
+      this.stack.push(key)
+    }
+  }
+
+  get(key) {
+    const value = this.map.get(key)
+    if (!value) return -1
+    const index = this.stack.indexOf(key)
+    this.stack.splice(index, 1)
+    this.stack.push(key)
+    return value
+  }
 }
