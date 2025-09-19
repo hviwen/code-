@@ -103,6 +103,17 @@ const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 function validateEmailWrong(email) {
   // 复杂的字符串切割和检查逻辑
 }
+
+// ✅ 正确：字符串验证的边界处理
+function isValidNumber(s) {
+  if (!s || typeof s !== 'string') return false
+
+  s = s.trim()
+  if (s === '') return false
+
+  const regex = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/
+  return regex.test(s)
+}
 ```
 
 #### 相关练习题

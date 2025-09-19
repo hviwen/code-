@@ -23,6 +23,9 @@ longestPalindromeDetector('cbbd') // 返回 "bb"
 longestPalindromeDetector('a') // 返回 "a"
 longestPalindromeDetector('ac') // 返回 "a" 或 "c"
 longestPalindromeDetector('') // 返回 ""
+longestPalindromeDetector('racecar') // 返回 "racecar"
+longestPalindromeDetector('abcdef') // 返回 "a" (任意单字符)
+longestPalindromeDetector('noon high it is') // 返回 "noon"
 ```
 
 **解题提示**：
@@ -805,8 +808,19 @@ class SimpleLRU {
   }
 }
 
-// 时间复杂度: 所有操作O(1)
-// 空间复杂度: O(capacity)
+// 性能对比分析:
+// 双向链表版本: get O(1), put O(1), 空间 O(capacity)
+// Map顺序版本: get O(1), put O(1), 空间 O(capacity)
+// 数组版本(错误): get O(n), put O(n), 空间 O(capacity)
+
+// 为什么双向链表版本最优:
+// 1. 真正的O(1)操作，不依赖于JavaScript引擎优化
+// 2. 明确的数据结构设计，易于理解和维护
+// 3. 在大容量缓存中性能更稳定
+
+// Map顺序版本的优缺点:
+// 优点: 代码简洁，利用ES6 Map的插入顺序特性
+// 缺点: 依赖于JavaScript引擎的内部实现，在某些情况下可能不是真正的O(1)
 ```
 
 </details>
