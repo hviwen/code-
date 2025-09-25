@@ -844,25 +844,32 @@ function maxArea(height) {
 ```javascript
 // 字符串压缩
 function compress(chars) {
-  let write = 0,
-    anchor = 0
+  let write = 0,    // 写指针：记录压缩结果的写入位置
+    anchor = 0      // 锚点：当前字符组的起始位置
 
+  // read遍历整个数组，包括越界位置(用于处理最后一组)
   for (let read = 0; read <= chars.length; read++) {
+    
+    // 条件：到达数组末尾 OR 当前字符与锚点字符不同
     if (read === chars.length || chars[read] !== chars[anchor]) {
+      
+      // 1. 写入字符
       chars[write++] = chars[anchor]
 
+      // 2. 如果字符重复次数 > 1，写入计数
       if (read - anchor > 1) {
-        const count = String(read - anchor)
-        for (const digit of count) {
+        const count = String(read - anchor)  // 转为字符串
+        for (const digit of count) {         // 逐位写入
           chars[write++] = digit
         }
       }
 
+      // 3. 移动锚点到新字符组
       anchor = read
     }
   }
 
-  return write
+  return write  // 返回压缩后的长度
 }
 
 // 最长公共前缀
