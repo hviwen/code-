@@ -72,3 +72,34 @@ class StackUsingQueues {
     return this.outStack === 0
   }
 }
+
+/*
+### 72. 长度最小的子数组
+**描述**：找到和至少为目标值的连续子数组的最小长度。
+- 如果不存在这样的子数组，则返回 0。
+
+**输入**：目标值，正整数数组
+**输出**：数字 (最小长度)
+
+**示例**：
+```javascript
+minSubArrayLen(7, [2, 3, 1, 2, 4, 3]) // 返回 2
+minSubArrayLen(4, [1, 4, 4]) // 返回 1
+minSubArrayLen(11, [1, 1, 1, 1, 1, 1, 1, 1]) // 返回 0
+```*/
+function minSubArrayLen(target, nums) {
+  let sum = 0
+  let left = 0
+  let miniLen = nums.length
+
+  for (let right = 0; right < nums.length; right++) {
+    sum += nums[right]
+    while (sum >= target) {
+      miniLen = Math.min(miniLen, right - left + 1)
+      sum -= nums[left]
+      left++
+    }
+  }
+
+  return miniLen === nums.length ? 0 : miniLen
+}
