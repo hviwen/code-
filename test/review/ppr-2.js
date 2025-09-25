@@ -152,3 +152,163 @@ function advancedTranslate(text) {
     })
     .join(' ')
 }
+
+function combinationSum(candidates, target) {
+  const result = []
+
+  function backTracking(start, currentCombination, remainingSum) {
+    if (remainingSum === 0) {
+      result.push([...currentCombination])
+      return
+    }
+
+    if (remainingSum < 0) {
+      return
+    }
+
+    for (let i = start; i < candidates.length; i++) {
+      currentCombination.push(candidates[i])
+      backTracking(i, currentCombination, remainingSum - candidates[i])
+      currentCombination.pop()
+    }
+  }
+
+  backTracking(0, [], target)
+  return result
+}
+
+function longestCommonPrefix(strs) {
+  if (!strs || strs.length === 0) return ''
+
+  for (let i = 0; i < strs[0].length; i++) {
+    const char = strs[0][i]
+
+    for (let j = 1; j < strs.length; j++) {
+      if (i >= strs[j].length || strs[j][i] !== char) {
+        return strs[0].splice(0, i)
+      }
+    }
+  }
+  return strs[0]
+}
+
+class MyQueen {
+  constructor() {
+    this.inStack = []
+    this.outStack = []
+  }
+
+  enqueue(val) {
+    this.inStack.push(val)
+  }
+
+  _transferIfNeeded() {
+    if (this.outStack.length === 0) {
+      while (this.inStack.length > 0) {
+        this.outStack.push(this.inStack.pop())
+      }
+    }
+  }
+
+  dequeue() {
+    this._transferIfNeeded()
+    return this.outStack.length === 0 ? null : this.outStack.pop()
+  }
+
+  peek() {
+    this._transferIfNeeded()
+    return this.outStack.length === 0 ? null : this.outStack[this.outStack.length - 1]
+  }
+
+  isEmpty() {
+    return this.outStack.length === 0 && this.inStack.length === 0
+  }
+}
+
+class LRUCache {
+  constructor(capacity) {
+    this.capacity = capacity
+    this.cache = new Map()
+  }
+
+  get(key) {
+    if (this.cache.has(key)) {
+      const value = this.cache.get(key)
+      this.cache.delete(key)
+      this.cache.set(key, value)
+      return value
+    }
+    return -1
+  }
+
+  put(key, value) {
+    if (this.cache.has(key)) {
+      this.cache.delete(key)
+    } else if (this.cache.size >= this.capacity) {
+      const firstKey = this.cache.keys().next().value
+      this.cache.delete(firstKey)
+    }
+    this.cache.set(key, value)
+  }
+}
+
+class LFUCache {
+  constructor(capacity) {
+    this.capacity = capacity
+    this.minReq = 0
+
+    this.keyToValue = new Map()
+    this.keyToFreq = new Map()
+    this.freqToKeys = new Map()
+  }
+
+  #_updateFreq(key) {
+    const freq = this.keyToFreq.get(key)
+    this.freqToKeys.get(freq).delete(key)
+
+    if (this.freqToKeys.get(key).size === 0 && this.minReq === freq) {
+      this.minReq++
+    }
+
+    const newFreq = freq + 1
+    this.keyToFreq.set(key, newFreq)
+
+    if (!this.freqToKeys.has(newFreq)) {
+      this.freqToKeys.set(newFreq, new Set())
+    }
+    this.freqToKeys.get(newFreq).add(key)
+  }
+
+  get(key) {
+    if (!this.keyToValue.has(key)) {
+      return -1
+    }
+    this.#_updateFreq(key)
+    return this.keyToValue.get(key)
+  }
+
+  put(key, value) {
+    if (this.capacity <= 0) return
+    if (this.keyToValue.has(key)) {
+      this.keyToValue.set(key, value)
+      this.#_updateFreq(key)
+      return
+    }
+    if (this.keyToValue.size >= this.capacity) {
+      const miniKeys = this.freqToKeys.get(this.minReq)
+
+      const oldKey = miniKeys.values().next().value
+      miniKeys.delete(oldKey)
+      this.keyToValue.delete(oldKey)
+      this.keyToFreq.delete(oldKey)
+    }
+
+    this.keyToValue.set(key, value)
+    this.keyToFreq.set(key, 1)
+    if (!this.freqToKeys.has(1)) {
+      this.freqToKeys.set(1, new Set())
+    }
+    this.freqToKeys.get(1).add(key)
+    this.minReq = 1
+  }
+}
