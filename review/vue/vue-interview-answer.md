@@ -62,31 +62,61 @@
 
 **7.** `v-for` 上为什么需要 `key`？如何选择合适的 key？
 
-1. 
+1. v-for 使用key，可以有效绑定子组件的身份，用于diff算法时只对有变更的key做更新。
+2. key需要绑定唯一的值。可以是string 和 number类型
 
 **8.** Vue 中的单向数据流是什么意思？
 
+1. 单向数据流是指子组件的数据渲染只来自父组件的传递，而不可以直接修改props数据。当需要做数据变更时，需要通过事件触发父组件，通过更新数据源重新渲染新的值。
+
 **9.** 什么是 Vue 组件？如何定义一个组件？
 
+1. 将公共的可以复用的部分抽离，通过接收props，emits方式来实现一个独立的导出的结构可以被调用的组件。
+2. 可以通过 defineOption
+
 **10.** 什么是 SFC（单文件组件）？它有什么优势？
+1. single file component。就是将视图部分通过 template 包含的xml标签组件组合，逻辑部分通过在script 标签内js实现。样式部分通过在style标签内通过css样式实现。
+2. 优势是关注点更聚焦
 
 **11.** `v-bind` 和 `v-on` 的作用分别是什么？有什么简写形式？
+1. v-bind 绑定动态属性 简写 :
+2. v-on 绑定事件 简写 @
 
 **12.** 什么是模板引用（template refs）？如何使用？
+1. 模版引用，是用ref访问一个组件的全部实例和方法
+2. 可以通过
+   ```vue
+   const childRef = ref(null)
+   <Child ref="childRef" />
+
+   或者
+   const childRef = useTemplate()
+   ```
 
 **13.** Vue 3 中的 `defineProps` 和 `defineEmits` 是什么？
+1. defineProps 宏是用来定义组件属性
+2. defineEmits 宏是用来定义事件
+3. 都只在组合式API下使用
 
 **14.** 什么是 `v-model`？在 Vue 3 中有什么变化？
+1. v-model 是vue3中的数据双向绑定，本质上是 v-bind:'valueModel' 和 v-on:'update:valueModel'的简写
+2. 简化了数据传递和开发的心智
 
 **15.** Vue 中如何实现条件渲染？有哪些方式？
+1. 通过v-if判断
+2. component is
 
 ### 组件通信（16-25）
 
 **16.** 父组件如何向子组件传递数据？
+1. 通过props属性值传递
 
 **17.** 子组件如何向父组件传递数据？
+1. 通过emit事件响应 向父组件传递数据
 
 **18.** 什么是 `provide` / `inject`？有什么使用场景？
+1. vue中祖孙组件传递数据的方式，provide 提供，inject 注入。成对使用
+2. 可以通过在祖父组件中 provide(key,xxx) 提供,在任意子孙组件中通过const xxx = inject(key)接收
 
 **19.** Vue 中有哪些组件通信方式？请列举并简述。
 
