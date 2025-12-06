@@ -22,65 +22,83 @@
 
 **1.** Vue 2 和 Vue 3 的主要区别有哪些？
 
-1. vue2 和 vue3的底层实现方式不同，vue2为兼顾老版本浏览器采用 Object.definePrototype 的方式对数据进行geter/setter ,需要使用 vue.set的方式来更新数据。相比Vue3 采用ES6中的Proxy对数据做响应式，通过track和tigger来对数据的读取，写入，删除，不存在数据访问等做监听完成响应式操作。
-2. 生命周期不同，在vue2版本中 有beforeCreate和create 和 destroy等生命周期，在vue3中使用 setup 和 onUnMounted代替
-3. vue3新增了组合式API 选项式API的写法和组合式函数
-4. Vue3 支持typescript
-5. vue3 新增了Teleport Suspense Transiion等内置组件
-6. vue3 新增tree-Sharking 更小的包体积和运行速度
-7. vue3 支持多根节点
-8. vue3 新增v-model 数据双向绑定
+- vue2 和 vue3的底层实现方式不同，vue2为兼顾老版本浏览器采用 Object.definePrototype 的方式对数据进行geter/setter ,需要使用 vue.set的方式来更新数据。相比Vue3 采用ES6中的Proxy对数据做响应式，通过track和tigger来对数据的读取，写入，删除，不存在数据访问等做监听完成响应式操作。
+- 生命周期不同，在vue2版本中 有beforeCreate和create 和 destroy等生命周期，在vue3中使用 setup 和 onUnMounted代替
+- vue3新增了组合式API 选项式API的写法和组合式函数
+- Vue3 支持typescript
+- vue3 新增了Teleport Suspense Transiion等内置组件
+- vue3 新增tree-Sharking 更小的包体积和运行速度
+- vue3 支持多根节点
+- vue3 新增v-model 数据双向绑定
+
+
 
 **2.** 什么是 `ref`，与 `reactive` 的区别是什么？
 
-1. ref是vue中可以定义响应式数据的函数。通常用于将原始类型数据转为响应式对象。在javascript中可以通过访问响应式对象的.value 访问到其真值。也可以传入非原始类型数据，但是在其内部使用reactive来对非原始类型数据进行包装。在模版中可以自动解包。
-2. reactive同样是用于定义响应式数据的函数，但与ref不同的是他用于包装非原始类型数据。返回对象同样具有响应式。可以直接通过对象访问其真实值。
+- ref是vue中可以定义响应式数据的函数。通常用于将原始类型数据转为响应式对象。在javascript中可以通过访问响应式对象的.value 访问到其真值。也可以传入非原始类型数据，但是在其内部使用reactive来对非原始类型数据进行包装。在模版中可以自动解包。
+- reactive同样是用于定义响应式数据的函数，但与ref不同的是他用于包装非原始类型数据。返回对象同样具有响应式。可以直接通过对象访问其真实值。
+
+
 
 **3.** 如何创建一个计算属性（computed）？它与普通函数有什么区别？
 
-1. 计算属性默认通过一个getter()函数来根据内部响应式值的变化自动更新其结果，返回一个ref类型的值。也可以为其设置get/set函数。set函数可以改变对应的响应式数据
-2. 与普通函数不同的是：
-   1. 计算属性可以缓存计算值，在响应式数据没有发生改变时其计算结果不改变且不用重复计算。
-   2. 计算属性只能是同步的，不可以执行异步操作
-   3. 计算属性根据响应式值的变化自动计算结果并返回一个ref类型的值
+- 计算属性默认通过一个getter()函数来根据内部响应式值的变化自动更新其结果，返回一个ref类型的值。也可以为其设置get/set函数。set函数可以改变对应的响应式数
+- 与普通函数不同的是：
+  1. 计算属性可以缓存计算值，在响应式数据没有发生改变时其计算结果不改变且不用重复计算。
+  2. 计算属性只能是同步的，不可以执行异步操作
+  3. 计算属性根据响应式值的变化自动计算结果并返回一个ref类型的值
+
+
 
 **4.** `setup()` 的执行时机是什么？能访问 `this` 吗？
 
-1. setup() 执行在初始化构建期间，此时DOM还没有构建，props刚传入。这个期间在执行数据的初始化状态设置。
-2. 不能访问this，因为dom还没有构建
+- setup() 执行在初始化构建期间，此时DOM还没有构建，props刚传入。这个期间在执行数据的初始化状态设置。
+- 不能访问this，因为dom还没有构建
+
+
 
 **5.** 如何在 `<script setup>` 中定义 props 和 emits？
 
-1. defineProps() 宏
-2. defineEmits() 宏
+- defineProps() 宏
+- defineEmits() 宏
+
+
 
 **6.** `v-if` 与 `v-show` 的区别是什么？各自适用什么场景？
 
-1. v-if和v-show都是vue中的指令
-2. v-if 在于判断组件/标签是否存在，如果为false则不做任何事情，为true则按照正常规则创建。切换v-if的值可以造成对应组件/标签的销毁和重建，频繁切换开销比较大
-3. v-show 只控制对应组件/标签块的css中的display是否为none ，切换不会操成组件的销毁和重建。更适合需要频繁切换的场景
+- v-if和v-show都是vue中的指令
+- v-if 在于判断组件/标签是否存在，如果为false则不做任何事情，为true则按照正常规则创建。切换v-if的值可以造成对应组件/标签的销毁和重建，频繁切换开销比较大
+- v-show 只控制对应组件/标签块的css中的display是否为none ，切换不会操成组件的销毁和重建。更适合需要频繁切换的场景
+
+
 
 **7.** `v-for` 上为什么需要 `key`？如何选择合适的 key？
-
-1. v-for 使用key，可以有效绑定子组件的身份，用于diff算法时只对有变更的key做更新。
-2. key需要绑定唯一的值。可以是string 和 number类型
+- key用于标记vDOM结构的item，在diff过程中用于判断是哪些组件在更新和变动，只针对变更的部分做更新。
+- key用于标记子组件唯一身份，建议是唯一id值，可以是string和number
 
 **8.** Vue 中的单向数据流是什么意思？
-
-1. 单向数据流是指子组件的数据渲染只来自父组件的传递，而不可以直接修改props数据。当需要做数据变更时，需要通过事件触发父组件，通过更新数据源重新渲染新的值。
+- 是指数据由父组件传递到子组件时，禁止子组件直接修改props数据。而是由子组件触发事件更新，父组件中做数据处理，更新数据后重新将数据传入到子组件中触发渲染更新。
 
 **9.** 什么是 Vue 组件？如何定义一个组件？
-
-1. 将公共的可以复用的部分抽离，通过接收props，emits方式来实现一个独立的导出的结构可以被调用的组件。
-2. 可以通过 defineOption
+- vue组件可以由单文件组件构成也可以是无渲染组件。
+- 可以通过app.component 声明组件，被其他组件调用，可以包含内部自有的值和外部传入的属性props，通过事件响应等方式与父组件通讯
 
 **10.** 什么是 SFC（单文件组件）？它有什么优势？
 1. single file component。就是将视图部分通过 template 包含的xml标签组件组合，逻辑部分通过在script 标签内js实现。样式部分通过在style标签内通过css样式实现。
 2. 优势是关注点更聚焦
 
+- 全称single function component，通过template script style 将组件结构 逻辑 样式集中到一起。
+- 降低开发心智模型，更好的组织结构，将关注点聚焦。
+
+
 **11.** `v-bind` 和 `v-on` 的作用分别是什么？有什么简写形式？
 1. v-bind 绑定动态属性 简写 :
 2. v-on 绑定事件 简写 @
+
+- v-bind 用于动态属性绑定 简写为：
+- v-on 用于绑定事件 简写为@
+
+
 
 **12.** 什么是模板引用（template refs）？如何使用？
 1. 模版引用，是用ref访问一个组件的全部实例和方法
@@ -93,110 +111,271 @@
    const childRef = useTemplate()
    ```
 
+- 模版引用 可以用过定义同名响应性数据，然后通过ref绑定组件，就可以调用被绑定组件的所有实例
+
+- ```vue
+  <script>
+    const chilldref = ref(null)
+  </script>
+  
+  <template>
+  <Child ref="childref" />
+  </template>
+  ```
+
+
+
 **13.** Vue 3 中的 `defineProps` 和 `defineEmits` 是什么？
 1. defineProps 宏是用来定义组件属性
 2. defineEmits 宏是用来定义事件
 3. 都只在组合式API下使用
 
+- defineProps 定义组件属性
+- defineEmits 定义组件事件
+
+
+
 **14.** 什么是 `v-model`？在 Vue 3 中有什么变化？
 1. v-model 是vue3中的数据双向绑定，本质上是 v-bind:'valueModel' 和 v-on:'update:valueModel'的简写
 2. 简化了数据传递和开发的心智
 
+- v-model 双向数据绑定
+- 本质为 v-bind:"modelValue" v-on:"update:modelValue" 的结合体 
+- 通常在input textArea select等组件中使用
+
+
+
 **15.** Vue 中如何实现条件渲染？有哪些方式？
 1. 通过v-if判断
 2. component is
+
+- 
 
 ### 组件通信（16-25）
 
 **16.** 父组件如何向子组件传递数据？
 1. 通过props属性值传递
 
+- 使用绑定属性通过props向子组件传递数据
+- 也可以通过provide inject的方式
+- 也可以通过 eventBus的方式
+
+
+
 **17.** 子组件如何向父组件传递数据？
 1. 通过emit事件响应 向父组件传递数据
+
+- 通过绑定注册事件回调的方式 emit
+- 也可以通过 inject
+- 也可以通过 eventBus
+
+
 
 **18.** 什么是 `provide` / `inject`？有什么使用场景？
 1. vue中祖孙组件传递数据的方式，provide 提供，inject 注入。成对使用
 2. 可以通过在祖父组件中 provide(key,xxx) 提供,在任意子孙组件中通过const xxx = inject(key)接收
 
+- vue中的注入与依赖
+- 祖父组件或者全局使用 provide（key，value）的方式注入，在任意子孙组件中通过 const value = inject(key)的方式接收传入的数据
+- 常见场景有主题色控制、角色或者权限切换
+
+ 
+
 **19.** Vue 中有哪些组件通信方式？请列举并简述。
+
+- 父子组件 props emits
+- 祖孙组件 provide inject
+- 兄弟组件（无共同祖父组件） eventBus 或者 pinia。
+- 兄弟组件（有共同祖父组件）可以通过provide inject 更改响应式数据到达传递数据到兄弟组件的效果
+
+
 
 **20.** 如何在兄弟组件之间通信？
 
+- 兄弟组件（无共同祖父组件） eventBus 或者 pinia。
+- 兄弟组件（有共同祖父组件）可以通过provide inject 更改响应式数据到达传递数据到兄弟组件的效果
+
+
+
 **21.** `$attrs` 和 `$listeners` 的作用是什么？（Vue 3 中有何变化？）
+
+- `$attrs` 属性透传，没有在子组件上定义的属性的其他属性数据，可以透传到子组件的根结点上。
+- `$listeners` 事件透传
+- 可以通过设置inheritattrs 来控制是否继续传递
+- Vue3 中可以使用 useAttrs来获取
+
+
 
 **22.** 什么是透传 Attributes（Fallthrough Attributes）？
 
+- 没有在子组件上定义的属性的其他属性数据，可以透传到子组件的根结点上。
+
+
+
 **23.** 如何在组件中访问父组件或子组件实例？
+
+- 可以通过模版引用ref的方式
+- 可以通过子组件暴露属性 expose属性或者方法
+
+
 
 **24.** 事件总线（Event Bus）的原理是什么？Vue 3 中推荐用什么替代？
 
+- 本质上是订阅发布模式 通过订阅收集依赖，在调用时将收集的依赖执行
+- provide inject
+
+
+
 **25.** `v-model` 在自定义组件中是如何工作的？
+
+- v-bind:"modelValue" v-on:"update:modelValue"
+- 在子组件中 使用事件emit("update:modelValue",e.target.value) 的方式将更新值传递到父组件
+
+
 
 ### 生命周期（26-32）
 
 **26.** Vue 3 组件的生命周期钩子有哪些？按顺序列出。
 
+- setup
+- befroeCreate
+- created
+- beforeMount
+- mounted
+- beforeUpdate
+- updated
+- beforeUnmount
+- unmounted
+
+
+
 **27.** `onMounted` 和 `onCreated`（beforeCreate/created）有什么区别？
+- onMounted 在dom挂载完成后执行
+- onCreated 在dom挂载前执行
 
 **28.** 什么时候应该使用 `onBeforeUnmount` 和 `onUnmounted`？
+- onBeforeUnmount 在组件卸载前执行
+- onUnmounted 在组件卸载后执行
 
 **29.** `<script setup>` 中如何使用生命周期钩子？
+- 通过import { onMounted } from 'vue' 的方式引入
 
 **30.** 父子组件的生命周期钩子执行顺序是怎样的？
+- 父beforeCreate -> 父created -> 父beforeMount -> 子beforeCreate -> 子created -> 子beforeMount -> 子mounted -> 父mounted
 
 **31.** 在哪个生命周期钩子中可以访问 DOM？
+- onMounted
 
 **32.** `onActivated` 和 `onDeactivated` 是什么？什么场景下使用？
+- onActivated 在keep-alive组件被激活时调用
+- onDeactivated 在keep-alive组件被失活时调用
 
 ### 指令与模板语法（33-40）
 
 **33.** 如何创建一个自定义指令（directive）？举例说明。
+- 通过app.directive('focus', { mounted(el) { el.focus() } })的方式创建
 
 **34.** 自定义指令的生命周期钩子有哪些？
+- created
+- beforeMount
+- mounted
+- beforeUpdate
+- updated
+- beforeUnmount
+- unmounted
 
 **35.** 什么是修饰符（Modifier）？举例说明常用的事件修饰符。
+- 修饰符是用于修饰指令的行为的特殊后缀
+- 事件修饰符 .stop .prevent .capture .self .once .passive
 
 **36.** 动态组件是什么？如何使用 `<component :is="...">`？
+- 通过:is绑定组件的方式实现动态组件的切换
 
 **37.** 什么是插槽（Slot）？有哪些类型的插槽？
+- 插槽是用于在组件中定义内容的占位符
+- 默认插槽 具名插槽 作用域插槽
 
 **38.** 如何使用具名插槽和作用域插槽？
+- 具名插槽通过name属性定义
+- 作用域插槽通过v-slot:slotName="slotProps"的方式定义，也可以使用#slotName="slotProps"的简写方式
 
 **39.** `v-once` 和 `v-memo` 的作用是什么？
+- v-once 用于只渲染一次的组件
+- v-memo 用于缓存组件
 
 **40.** 如何在模板中使用 JavaScript 表达式？有什么限制？
+- 可以在模板中使用JavaScript表达式
+- 不能使用赋值语句
 
 ### Vue 3 新特性（41-55）
 
 **41.** 什么是 Composition API？与 Options API 有什么区别？
+- Composition API 是一种新的组件逻辑组织方式，将组件的逻辑按照功能进行分割，可以将多个功能组合到一个组件中
+- Options API 是一种基于选项的组件逻辑组织方式，将组件的逻辑按照数据、方法、生命周期等进行分割
 
 **42.** `<script setup>` 语法糖有什么优势？
+- 可以更方便的使用Composition API
+- 可以更方便的使用TypeScript
+- 可以更方便的使用模板引用
 
 **43.** `watch` 和 `watchEffect` 的区别是什么？
+- watch 需要手动指定监听的响应式数据，有新旧值，可以指定多个，可以指定时机
+- watchEffect 会自动收集依赖，自动执行
 
 **44.** 什么是 `shallowRef` 和 `shallowReactive`？什么场景下使用？
+- shallowRef 只有.value的赋值是响应式的 浅层响应式
+- shallowReactive 只有根级别属性是响应式的 浅层响应式
+- 适用于包装大型数据结构或第三方库实例
 
 **45.** 如何使用 `toRef` 和 `toRefs`？它们解决什么问题？
+- toRef 为单个属性创建响应式引用
+- toRefs 为多个属性创建响应式引用
+- 解决了解构响应式对象后失去响应性的问题
 
 **46.** `Teleport` 组件的用途是什么？如何使用？
+- Teleport 用于将组件的HTML渲染到DOM树的其他位置
+- 保持组件的逻辑关系不变
+- 解决CSS层级和定位问题
 
 **47.** `Suspense` 组件的基本作用是什么？
+- 用于等待异步子组件（或 `async setup`）完成渲染，并显示 fallback，占位或加载状态
 
 **48.** 什么是 `defineExpose`？为什么需要它？
+- 暴露组件的属性和方法给父组件
+- 替代Options API中的自动暴露机制
 
 **49.** `nextTick` 有什么用途？什么时候使用？
+- 等待DOM更新完成后执行回调
+- 修改数据后计算新的DOM或者操作DOM
 
 **50.** Vue 3 中移除了哪些 Vue 2 的特性或 API？
+- 移除了filter
+- 移除了transition-group
+- 移除了v-on.native
+- 移除了v-once
+- 移除了v-memo
 
 **51.** 什么是 `Fragment`（片段）？Vue 3 中有什么变化？
+- Fragment 是 Vue 3 中用于支持组件返回多个根节点的特性。它允许组件模板中不需要额外的包裹元素，减少无意义的 DOM 层级。
 
 **52.** `readonly` 的作用是什么？与 `const` 有什么区别？
+- readonly 用于创建一个只读的响应式对象
+- const 用于创建一个常量
 
 **53.** 如何在 Vue 3 中使用 TypeScript？
+- 使用defineComponent 或者 defineProps
+- 在script标签中添加lang="ts"
 
 **54.** 什么是 `isRef`、`unref`、`toRaw`？分别用于什么场景？
+- isRef 判断是否是ref对象
+- unref 返回ref对象的值或者普通值
+- toRaw 返回reactive对象的原始对象
 
 **55.** Vue 3 的 `emits` 选项有什么作用？为什么推荐声明 emits？
+- 声明组件可以触发的事件
+- 提供事件参数验证
+- 改善开发体验和IDE支持
+- 与TypeScript集成提供类型安全
 
 ---
 
