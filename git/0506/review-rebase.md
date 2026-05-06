@@ -34,3 +34,12 @@ log 更干净
 ```远程: A --- B
 本地: A --- B --- C
 ```
+
+```drawio
+graph LR
+    A[远程提交 A] --> B[远程提交 B]
+    C[本地提交 C] --> A
+    C --> B
+```
+
+> 说明：使用 git pull --rebase 后，本地提交 C 被放在远程提交 A 和 B 之后，保持了历史的线性结构，避免了无意义的 merge commit。
