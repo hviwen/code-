@@ -5141,11 +5141,7 @@ function createAsyncFunction(generatorFunction) {
     const generator = generatorFunction.apply(this, args)
 
     return new Promise((resolve, reject) => {
-      const pending = new Map() // 跟踪并发操作
-      let stepCount = 0
-
       function step(method, value) {
-        const currentStep = ++stepCount
 
         try {
           const result = generator[method](value)
