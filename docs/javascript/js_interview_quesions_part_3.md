@@ -9513,88 +9513,92 @@ console.log(Reflect.isExtensible(extensible)) // false
 
 // 11. 实用工具函数集合
 class ReflectUtils {
-  // 深度获取嵌套属性
+  static isObject(obj) {
+    return obj !== null && typeof obj === "object";
+  }
+
+  static isValidKey(key) {
+    return !["__proto__", "constructor", "prototype"].includes(key);
+  }
+
   static deepGet(obj, path, defaultValue = undefined) {
-    const keys = path.split('.')
-    let current = obj
+    if (!this.isObject(obj)) {
+      return defaultValue;
+    }
+    const keys = path.split(".");
+    let current = obj;
 
     for (const key of keys) {
-      if (current == null || !Reflect.has(current, key)) {
-        return defaultValue
+      if (!this.isValidKey(key)) return defaultValue;
+      if (current === null || !Reflect.has(current, key)) {
+        return defaultValue;
       }
-      current = Reflect.get(current, key)
+      current = Reflect.get(current, key);
     }
-
-    return current
+    return current;
   }
 
-  // 深度设置嵌套属性
   static deepSet(obj, path, value) {
-    const keys = path.split('.')
-    const lastKey = keys.pop()
-    let current = obj
+    if (!this.isObject(obj)) return false;
+    const keys = path.split(".");
+    const lastKey = keys.pop();
+    let current = obj;
+
+    if (!this.isValidKey(lastKey)) return false;
 
     for (const key of keys) {
-      if (!Reflect.has(current, key) || typeof current[key] !== 'object') {
-        Reflect.set(current, key, {})
-      }
-      current = Reflect.get(current, key)
-    }
+      if (!this.isValidKey(key)) return false;
 
-    return Reflect.set(current, lastKey, value)
+      if (!this.isObject(current[key])) {
+        Reflect.set(current, key, {});
+      }
+      current = Reflect.get(current, key);
+    }
+    return Reflect.set(current, lastKey, value);
   }
 
-  // 对象克隆
-  static clone(obj) {
-    if (obj == null || typeof obj !== 'object') {
-      return obj
-    }
+  static clone(obj, hash = new WeakMap()) {
+    if (!this.isObject(obj)) return obj;
 
-    const cloned = Array.isArray(obj) ? [] : {}
-    const keys = Reflect.ownKeys(obj)
+    if (hash.has(obj)) return hash.get(obj);
+
+    if (obj instanceof Date) return new Date(obj);
+    if (obj instanceof RegExp) return new RegExp(obj);
+
+    const cloned = Array.isArray(obj)
+      ? []
+      : Object.create(Reflect.getPrototypeOf(obj));
+    hash.set(obj, cloned);
+    const keys = Reflect.ownKeys(obj);
 
     for (const key of keys) {
-      const descriptor = Reflect.getOwnPropertyDescriptor(obj, key)
+      const descriptor = Reflect.getOwnPropertyDescriptor(obj, key);
       if (descriptor) {
         Reflect.defineProperty(cloned, key, {
           ...descriptor,
-          value: this.clone(descriptor.value),
-        })
+          value: this.clone(descriptor.value, hash),
+        });
       }
     }
-
-    return cloned
+    return cloned;
   }
 
-  // 对象合并
   static merge(target, ...sources) {
-    for (const source of sources) {
-      if (source == null) continue
+    if (!this.isObject(target)) return target;
 
-      const keys = Reflect.ownKeys(source)
+    for (const source of sources) {
+      if (!this.isObject(source)) continue;
+
+      const keys = Reflect.ownKeys(source);
       for (const key of keys) {
-        const descriptor = Reflect.getOwnPropertyDescriptor(source, key)
+        if (typeof key === "string" && !this.isValidKey(key)) continue;
+        const descriptor = Reflect.getOwnPropertyDescriptor(source, key);
         if (descriptor) {
-          Reflect.defineProperty(target, key, descriptor)
+          Reflect.defineProperty(target, key, descriptor);
         }
       }
     }
-
-    return target
-  }
-
-  // 属性映射
-  static mapProperties(obj, mapper) {
-    const result = {}
-    const keys = Reflect.ownKeys(obj)
-
-    for (const key of keys) {
-      const value = Reflect.get(obj, key)
-      const mapped = mapper(value, key, obj)
-      Reflect.set(result, key, mapped)
-    }
-
-    return result
+    return target;
   }
 }
 
