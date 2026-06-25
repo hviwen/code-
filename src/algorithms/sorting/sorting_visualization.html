@@ -1,0 +1,827 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>JavaScript 排序算法可视化演示</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+
+      .header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
+
+      .header h1 {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+      }
+
+      .header p {
+        font-size: 1.2em;
+        opacity: 0.9;
+      }
+
+      .content {
+        padding: 30px;
+      }
+
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+
+      .control-group {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 10px;
+        border: 2px solid #e9ecef;
+      }
+
+      .control-group h3 {
+        color: #495057;
+        margin-bottom: 15px;
+        font-size: 1.1em;
+      }
+
+      .input-group {
+        margin-bottom: 15px;
+      }
+
+      .input-group label {
+        display: block;
+        margin-bottom: 5px;
+        color: #6c757d;
+        font-weight: 500;
+      }
+
+      .input-group input,
+      .input-group select {
+        width: 100%;
+        padding: 10px;
+        border: 2px solid #dee2e6;
+        border-radius: 5px;
+        font-size: 14px;
+        transition: border-color 0.3s;
+      }
+
+      .input-group input:focus,
+      .input-group select:focus {
+        outline: none;
+        border-color: #667eea;
+      }
+
+      .btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 25px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition:
+          transform 0.2s,
+          box-shadow 0.2s;
+        margin: 5px;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+      }
+
+      .btn:active {
+        transform: translateY(0);
+      }
+
+      .btn-secondary {
+        background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+      }
+
+      .btn-success {
+        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      }
+
+      .btn-danger {
+        background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+      }
+
+      .results {
+        margin-top: 30px;
+      }
+
+      .result-card {
+        background: #f8f9fa;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        transition: transform 0.2s;
+      }
+
+      .result-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      }
+
+      .result-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+
+      .result-title {
+        font-size: 1.3em;
+        font-weight: 600;
+        color: #495057;
+      }
+
+      .result-time {
+        background: #667eea;
+        color: white;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 0.9em;
+        font-weight: 500;
+      }
+
+      .result-details {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+      }
+
+      .detail-item {
+        text-align: center;
+        padding: 10px;
+        background: white;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+      }
+
+      .detail-label {
+        font-size: 0.8em;
+        color: #6c757d;
+        margin-bottom: 5px;
+      }
+
+      .detail-value {
+        font-size: 1.1em;
+        font-weight: 600;
+        color: #495057;
+      }
+
+      .complexity-info {
+        background: #e3f2fd;
+        border: 2px solid #2196f3;
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 20px;
+      }
+
+      .complexity-title {
+        color: #1976d2;
+        font-weight: 600;
+        margin-bottom: 10px;
+      }
+
+      .complexity-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+      }
+
+      .array-display {
+        background: #f8f9fa;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 20px 0;
+      }
+
+      .array-title {
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: #495057;
+      }
+
+      .array-content {
+        font-family: 'Courier New', monospace;
+        background: white;
+        padding: 15px;
+        border-radius: 5px;
+        border: 1px solid #dee2e6;
+        word-break: break-all;
+        max-height: 100px;
+        overflow-y: auto;
+      }
+
+      .status-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+      }
+
+      .status-success {
+        background: #28a745;
+      }
+
+      .status-error {
+        background: #dc3545;
+      }
+
+      .loading {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #667eea;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-right: 10px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .performance-chart {
+        background: white;
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 20px;
+      }
+
+      .chart-title {
+        text-align: center;
+        font-weight: 600;
+        margin-bottom: 20px;
+        color: #495057;
+      }
+
+      .chart-bars {
+        display: flex;
+        align-items: flex-end;
+        height: 200px;
+        gap: 10px;
+        padding: 20px 0;
+      }
+
+      .chart-bar {
+        flex: 1;
+        background: linear-gradient(to top, #667eea, #764ba2);
+        border-radius: 5px 5px 0 0;
+        position: relative;
+        min-height: 10px;
+        transition: all 0.3s ease;
+      }
+
+      .chart-bar:hover {
+        opacity: 0.8;
+        transform: scale(1.05);
+      }
+
+      .chart-label {
+        position: absolute;
+        bottom: -25px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 0.8em;
+        color: #6c757d;
+        text-align: center;
+        width: 100%;
+      }
+
+      .chart-value {
+        position: absolute;
+        top: -25px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 0.7em;
+        color: #495057;
+        font-weight: 500;
+        white-space: nowrap;
+      }
+
+      @media (max-width: 768px) {
+        .controls {
+          grid-template-columns: 1fr;
+        }
+
+        .result-details {
+          grid-template-columns: 1fr;
+        }
+
+        .complexity-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .header h1 {
+          font-size: 2em;
+        }
+
+        .content {
+          padding: 20px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🚀 JavaScript 排序算法演示</h1>
+        <p>可视化学习和性能对比工具</p>
+      </div>
+
+      <div class="content">
+        <!-- 控制面板 -->
+        <div class="controls">
+          <div class="control-group">
+            <h3>📊 数据设置</h3>
+            <div class="input-group">
+              <label for="arraySize">数组大小:</label>
+              <input
+                type="number"
+                id="arraySize"
+                value="100"
+                min="10"
+                max="10000"
+              />
+            </div>
+            <div class="input-group">
+              <label for="dataType">数据类型:</label>
+              <select id="dataType">
+                <option value="random">随机数据</option>
+                <option value="sorted">已排序</option>
+                <option value="reverse">逆序</option>
+                <option value="duplicate">重复元素</option>
+              </select>
+            </div>
+            <button
+              class="btn"
+              onclick="generateData()"
+            >
+              🎲 生成数据
+            </button>
+          </div>
+
+          <div class="control-group">
+            <h3>⚡ 算法选择</h3>
+            <div class="input-group">
+              <label for="algorithm">选择算法:</label>
+              <select id="algorithm">
+                <option value="all">全部算法</option>
+                <option value="bubbleSort">冒泡排序</option>
+                <option value="selectionSort">选择排序</option>
+                <option value="insertionSort">插入排序</option>
+                <option value="mergeSort">归并排序</option>
+                <option value="quickSort">快速排序</option>
+                <option value="heapSort">堆排序</option>
+                <option value="countingSort">计数排序</option>
+              </select>
+            </div>
+            <button
+              class="btn btn-success"
+              onclick="runSort()"
+            >
+              ▶️ 开始排序
+            </button>
+            <button
+              class="btn btn-secondary"
+              onclick="clearResults()"
+            >
+              🗑️ 清空结果
+            </button>
+          </div>
+
+          <div class="control-group">
+            <h3>🔧 测试选项</h3>
+            <button
+              class="btn"
+              onclick="runPerformanceTest()"
+            >
+              📈 性能测试
+            </button>
+            <button
+              class="btn"
+              onclick="runSpecialCases()"
+            >
+              🔍 特殊场景
+            </button>
+            <button
+              class="btn btn-danger"
+              onclick="runStressTest()"
+            >
+              💪 压力测试
+            </button>
+          </div>
+        </div>
+
+        <!-- 数组显示 -->
+        <div
+          id="arrayDisplay"
+          class="array-display"
+          style="display: none"
+        >
+          <div class="array-title">当前数组 (前50个元素):</div>
+          <div
+            id="arrayContent"
+            class="array-content"
+          ></div>
+        </div>
+
+        <!-- 结果显示 -->
+        <div
+          id="results"
+          class="results"
+        ></div>
+
+        <!-- 性能图表 -->
+        <div
+          id="performanceChart"
+          class="performance-chart"
+          style="display: none"
+        >
+          <div class="chart-title">性能对比图表</div>
+          <div
+            id="chartBars"
+            class="chart-bars"
+          ></div>
+        </div>
+
+        <!-- 复杂度信息 -->
+        <div class="complexity-info">
+          <div class="complexity-title">📚 算法复杂度对比</div>
+          <div class="complexity-grid">
+            <div class="detail-item">
+              <div class="detail-label">冒泡排序</div>
+              <div class="detail-value">O(n²) / O(1)</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">选择排序</div>
+              <div class="detail-value">O(n²) / O(1)</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">插入排序</div>
+              <div class="detail-value">O(n²) / O(1)</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">归并排序</div>
+              <div class="detail-value">O(n log n) / O(n)</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">快速排序</div>
+              <div class="detail-value">O(n log n) / O(log n)</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">堆排序</div>
+              <div class="detail-value">O(n log n) / O(1)</div>
+            </div>
+            <div class="detail-item">
+              <div class="detail-label">计数排序</div>
+              <div class="detail-value">O(n + k) / O(k)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="interview_sorting_algorithms.js"></script>
+    <script>
+      let currentData = []
+      let testResults = []
+
+      // 生成测试数据
+      function generateData() {
+        const size = parseInt(document.getElementById('arraySize').value)
+        const type = document.getElementById('dataType').value
+
+        switch (type) {
+          case 'random':
+            currentData = Array.from({ length: size }, () => Math.floor(Math.random() * 1000))
+            break
+          case 'sorted':
+            currentData = Array.from({ length: size }, (_, i) => i + 1)
+            break
+          case 'reverse':
+            currentData = Array.from({ length: size }, (_, i) => size - i)
+            break
+          case 'duplicate':
+            currentData = Array.from({ length: size }, () => Math.floor(Math.random() * 10))
+            break
+        }
+
+        displayArray()
+      }
+
+      // 显示数组
+      function displayArray() {
+        const display = document.getElementById('arrayDisplay')
+        const content = document.getElementById('arrayContent')
+
+        if (currentData.length > 0) {
+          display.style.display = 'block'
+          const preview = currentData.slice(0, 50)
+          content.textContent = `[${preview.join(', ')}${currentData.length > 50 ? ', ...' : ''}]`
+        } else {
+          display.style.display = 'none'
+        }
+      }
+
+      // 运行排序
+      function runSort() {
+        if (currentData.length === 0) {
+          alert('请先生成测试数据！')
+          return
+        }
+
+        const algorithm = document.getElementById('algorithm').value
+        const resultsDiv = document.getElementById('results')
+
+        if (algorithm === 'all') {
+          runAllAlgorithms()
+        } else {
+          runSingleAlgorithm(algorithm)
+        }
+      }
+
+      // 运行单个算法
+      function runSingleAlgorithm(algorithmName) {
+        const algorithms = {
+          bubbleSort: { func: SortingAlgorithms.bubbleSort, name: '冒泡排序' },
+          selectionSort: { func: SortingAlgorithms.selectionSort, name: '选择排序' },
+          insertionSort: { func: SortingAlgorithms.insertionSort, name: '插入排序' },
+          mergeSort: { func: SortingAlgorithms.mergeSort, name: '归并排序' },
+          quickSort: { func: SortingAlgorithms.quickSort, name: '快速排序' },
+          heapSort: { func: SortingAlgorithms.heapSort, name: '堆排序' },
+          countingSort: { func: SortingAlgorithms.countingSort, name: '计数排序' },
+        }
+
+        const algorithm = algorithms[algorithmName]
+        if (algorithm) {
+          const result = testAlgorithm(algorithm.func, algorithm.name)
+          displayResult(result)
+        }
+      }
+
+      // 运行所有算法
+      function runAllAlgorithms() {
+        const algorithms = [
+          { func: SortingAlgorithms.bubbleSort, name: '冒泡排序' },
+          { func: SortingAlgorithms.selectionSort, name: '选择排序' },
+          { func: SortingAlgorithms.insertionSort, name: '插入排序' },
+          { func: SortingAlgorithms.mergeSort, name: '归并排序' },
+          { func: SortingAlgorithms.quickSort, name: '快速排序' },
+          { func: SortingAlgorithms.heapSort, name: '堆排序' },
+          { func: SortingAlgorithms.countingSort, name: '计数排序' },
+        ]
+
+        testResults = []
+
+        algorithms.forEach(algorithm => {
+          try {
+            const result = testAlgorithm(algorithm.func, algorithm.name)
+            testResults.push(result)
+            displayResult(result)
+          } catch (error) {
+            console.error(`${algorithm.name} 执行出错:`, error)
+          }
+        })
+
+        updatePerformanceChart()
+      }
+
+      // 测试算法
+      function testAlgorithm(sortFunction, name) {
+        const testArr = [...currentData]
+        const startTime = performance.now()
+
+        const result = sortFunction(testArr)
+
+        const endTime = performance.now()
+        const duration = endTime - startTime
+        const isCorrect = isSorted(result)
+
+        return {
+          name,
+          duration,
+          isCorrect,
+          result,
+          originalSize: currentData.length,
+          sortedSize: result.length,
+        }
+      }
+
+      // 检查是否已排序
+      function isSorted(arr) {
+        for (let i = 1; i < arr.length; i++) {
+          if (arr[i] < arr[i - 1]) {
+            return false
+          }
+        }
+        return true
+      }
+
+      // 显示结果
+      function displayResult(result) {
+        const resultsDiv = document.getElementById('results')
+
+        const resultCard = document.createElement('div')
+        resultCard.className = 'result-card'
+
+        resultCard.innerHTML = `
+                <div class="result-header">
+                    <div class="result-title">
+                        <span class="status-indicator ${result.isCorrect ? 'status-success' : 'status-error'}"></span>
+                        ${result.name}
+                    </div>
+                    <div class="result-time">${result.duration.toFixed(2)}ms</div>
+                </div>
+                <div class="result-details">
+                    <div class="detail-item">
+                        <div class="detail-label">执行时间</div>
+                        <div class="detail-value">${result.duration.toFixed(2)}ms</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">数组大小</div>
+                        <div class="detail-value">${result.originalSize}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">正确性</div>
+                        <div class="detail-value">${result.isCorrect ? '✓ 正确' : '✗ 错误'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">结果预览</div>
+                        <div class="detail-value">[${result.result.slice(0, 5).join(', ')}...]</div>
+                    </div>
+                </div>
+            `
+
+        resultsDiv.appendChild(resultCard)
+      }
+
+      // 更新性能图表
+      function updatePerformanceChart() {
+        const chartDiv = document.getElementById('performanceChart')
+        const barsDiv = document.getElementById('chartBars')
+
+        if (testResults.length === 0) {
+          chartDiv.style.display = 'none'
+          return
+        }
+
+        chartDiv.style.display = 'block'
+        barsDiv.innerHTML = ''
+
+        const maxTime = Math.max(...testResults.map(r => r.duration))
+
+        testResults.forEach(result => {
+          const bar = document.createElement('div')
+          bar.className = 'chart-bar'
+
+          const height = (result.duration / maxTime) * 100
+          bar.style.height = `${height}%`
+
+          bar.innerHTML = `
+                    <div class="chart-value">${result.duration.toFixed(1)}ms</div>
+                    <div class="chart-label">${result.name}</div>
+                `
+
+          barsDiv.appendChild(bar)
+        })
+      }
+
+      // 清空结果
+      function clearResults() {
+        document.getElementById('results').innerHTML = ''
+        document.getElementById('performanceChart').style.display = 'none'
+        testResults = []
+      }
+
+      // 性能测试
+      function runPerformanceTest() {
+        const sizes = [100, 500, 1000, 2000]
+        clearResults()
+
+        sizes.forEach(size => {
+          document.getElementById('arraySize').value = size
+          generateData()
+
+          const resultCard = document.createElement('div')
+          resultCard.className = 'result-card'
+          resultCard.innerHTML = `
+                    <div class="result-header">
+                        <div class="result-title">📊 数据规模: ${size}</div>
+                    </div>
+                `
+          document.getElementById('results').appendChild(resultCard)
+
+          runAllAlgorithms()
+        })
+      }
+
+      // 特殊场景测试
+      function runSpecialCases() {
+        const cases = [
+          { type: 'sorted', name: '已排序数据' },
+          { type: 'reverse', name: '逆序数据' },
+          { type: 'duplicate', name: '重复元素' },
+        ]
+
+        clearResults()
+
+        cases.forEach(testCase => {
+          document.getElementById('dataType').value = testCase.type
+          generateData()
+
+          const resultCard = document.createElement('div')
+          resultCard.className = 'result-card'
+          resultCard.innerHTML = `
+                    <div class="result-header">
+                        <div class="result-title">🔍 ${testCase.name}</div>
+                    </div>
+                `
+          document.getElementById('results').appendChild(resultCard)
+
+          runAllAlgorithms()
+        })
+      }
+
+      // 压力测试
+      function runStressTest() {
+        document.getElementById('arraySize').value = 5000
+        document.getElementById('dataType').value = 'random'
+        generateData()
+
+        clearResults()
+
+        const resultCard = document.createElement('div')
+        resultCard.className = 'result-card'
+        resultCard.innerHTML = `
+                <div class="result-header">
+                    <div class="result-title">💪 压力测试 (5000个元素)</div>
+                </div>
+            `
+        document.getElementById('results').appendChild(resultCard)
+
+        // 只运行高效算法
+        const efficientAlgorithms = [
+          { func: SortingAlgorithms.mergeSort, name: '归并排序' },
+          { func: SortingAlgorithms.quickSort, name: '快速排序' },
+          { func: SortingAlgorithms.heapSort, name: '堆排序' },
+        ]
+
+        testResults = []
+        efficientAlgorithms.forEach(algorithm => {
+          const result = testAlgorithm(algorithm.func, algorithm.name)
+          testResults.push(result)
+          displayResult(result)
+        })
+
+        updatePerformanceChart()
+      }
+
+      // 初始化
+      document.addEventListener('DOMContentLoaded', function () {
+        generateData()
+      })
+    </script>
+  </body>
+</html>
